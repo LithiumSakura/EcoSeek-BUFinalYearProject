@@ -1,14 +1,14 @@
-name: Deploy Backend to Azure
+name: Deploy Backend to Google App Engine
 
 on:
   push:
     branches: [main]
     paths:
-      - 'backend/**'   # Only triggers when backend code changes
+      - 'backend/**'
   workflow_dispatch:
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -19,16 +19,39 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Build
-        run: dotnet build backend/MyApi/MyApi.csproj --configuration Release
-
       - name: Publish
         run: dotnet publish backend/MyApi/MyApi.csproj --configuration Release --output ./publish
 
-      - name: Deploy to Azure Web App
-        uses: azure/webapps-deploy@v3
+      - name: Copy app.yaml to publish folder
+        run: cp backend/MyApi/app.yaml ./publish/app.yaml
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
         with:
-          app-name: 'ecoseek-project'
-          slot-name: 'production'
-          publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE }}
-          package: ./publish
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Deploy to App Engine
+        uses: google-github-actions/deploy-appengine@v2
+        with:
+          working_directory: ./publish
+          project_id: ecoseek-individualproject
+```
+
+---
+
+Google uses a service account key instead of a publish profile:
+
+1. In Google Cloud Console → **IAM & Admin** → **Service Accounts**
+2. Click **Create Service Account**
+   - Name: `github-deployer`
+   - Grant role: **App Engine Deployer** + **App Engine Service Account Actor** + **Storage Admin** (all three are needed)
+3. Click on the created account → **Keys** → **Add Key** → **JSON** → download the file
+4. In GitHub → **Settings** → **Secrets** → **New repository secret**:
+   - Name: `GCP_SA_KEY`
+   - Value: paste the entire contents of the downloaded JSON file
+
+---
+
+Your backend URL will now be:
+```
+https://YOUR_PROJECT_ID.appspot.com
