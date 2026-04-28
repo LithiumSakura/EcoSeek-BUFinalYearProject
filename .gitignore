@@ -1,0 +1,24 @@
+# secrets — NEVER commit these
+firebase-key.json
+.env
+*.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+
+# VS Code
+.vscode/
+
+# App Engine
+.gcloudignore
+
+# OS
+.DS_Store
+Thumbs.db
