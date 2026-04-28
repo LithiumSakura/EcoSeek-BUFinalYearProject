@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}My Profile — EcoSeek{% endblock %}
+
+{% block content %}
+<div class="profile-page">
+
+  <!-- Header -->
+  <div class="profile-header">
+    <div class="profile-avatar" id="profile-avatar">🌱</div>
+    <div class="profile-name"   id="profile-name">Explorer</div>
+    <div class="profile-level"  id="profile-level">Level 1 • Seedling</div>
+  </div>
+
+  <!-- Stats row -->
+  <div class="profile-stats">
+    <div class="pstat">
+      <div class="pstat-num" id="stat-species">–</div>
+      <div class="pstat-label">Species</div>
+    </div>
+    <div class="pstat">
+      <div class="pstat-num" id="stat-xp">–</div>
+      <div class="pstat-label">Total XP</div>
+    </div>
+    <div class="pstat">
+      <div class="pstat-num" id="stat-streak">–</div>
+      <div class="pstat-label">Day Streak</div>
+    </div>
+    <div class="pstat">
+      <div class="pstat-num" id="stat-rank">–</div>
+      <div class="pstat-label">Rank</div>
+    </div>
+  </div>
+
+  <!-- Category progress bars -->
+  <div class="card">
+    <h2 class="card-title">Category Progress</h2>
+    <div class="prog-row">
+      <div class="prog-label"><span>🦋 Insects</span><span id="insect-count">0/30</span></div>
+      <div class="progress-bar-wrap"><div class="progress-bar-fill" id="insect-bar" style="width:0%"></div></div>
+    </div>
+    <div class="prog-row">
+      <div class="prog-label"><span>🌸 Plants</span><span id="plant-count">0/50</span></div>
+      <div class="progress-bar-wrap"><div class="progress-bar-fill" id="plant-bar" style="width:0%"></div></div>
+    </div>
+    <div class="prog-row">
+      <div class="prog-label"><span>🐦 Birds</span><span id="bird-count">0/40</span></div>
+      <div class="progress-bar-wrap"><div class="progress-bar-fill" id="bird-bar" style="width:0%"></div></div>
+    </div>
+    <div class="prog-row">
+      <div class="prog-label"><span>🦊 Animals</span><span id="animal-count">0/20</span></div>
+      <div class="progress-bar-wrap"><div class="progress-bar-fill" id="animal-bar" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <!-- Badges -->
+  <div class="card">
+    <h2 class="card-title">🎖️ My Badges</h2>
+    <div class="badges-grid" id="badges-grid">
+      <!-- filled by JS -->
+    </div>
+  </div>
+
+  <!-- Recent sightings -->
+  <div class="card">
+    <h2 class="card-title">🌿 My Collection</h2>
+    <div id="profile-sightings" class="sighting-list">
+      <p class="empty-msg">Loading your collection...</p>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  const userId = "{{ user_id }}";
+  const ALL_BADGES = [
+    { key:"first_find",  label:"First Find",      icon:"🌱" },
+    { key:"bird_5",      label:"Bird Watcher",     icon:"🐦" },
+    { key:"insect_5",    label:"Bug Hunter",        icon:"🦋" },
+    { key:"plant_10",    label:"Botanist",          icon:"🌸" },
+    { key:"animal_5",    label:"Animal Spotter",    icon:"🦊" },
+    { key:"species_10",  label:"Explorer 10",       icon:"🗺️" },
+    { key:"species_25",  label:"Explorer 25",       icon:"🌍" },
+    { key:"species_50",  label:"Champion",          icon:"🏆" },
+  ];
+
+  // Load user profile
+  fetch("/api/profile/" + userId)
+    .then(r => r.json())
+    .then(d => {
+      document.getElementById("profile-name").textContent  = d.display_name || "Explorer";
+      document.getElementById("profile-level").textContent = `Level ${d.level_num} • ${d.level_name}`;
+      document.getElementById("stat-species").textContent  = d.species_count || 0;
+      document.getElementById("stat-xp").textContent       = d.total_points  || 0;
+      document.getElementById("stat-streak").textContent   = d.streak_days   || 0;
+      document.getElementById("stat-rank").textContent     = "#" + (d.rank  || "–");
+
+      // Category bars
+      const cats = { insect: 30, plant: 50, bird: 40, animal: 20 };
+      for (const [cat, max] of Object.entries(cats)) {
+        const count = d[`${cat}_count`] || 0;
+        document.getElementById(`${cat}-count`).textContent = `${count}/${max}`;
+        document.getElementById(`${cat}-bar`).style.width   = Math.min(count / max * 100, 100) + "%";
+      }
+
+      // Badges
+      const earned = new Set(d.badges || []);
+      document.getElementById("badges-grid").innerHTML = ALL_BADGES.map(b => `
+        <div class="badge-item ${earned.has(b.key) ? '' : 'badge-locked'}">
+          <div class="badge-icon">${b.icon}</div>
+          <div class="badge-label">${b.label}</div>
+          ${!earned.has(b.key) ? '<div class="badge-lock">🔒</div>' : ''}
+        </div>`).join("");
+    });
+
+  // Load sightings
+  fetch("/api/sightings/" + userId)
+    .then(r => r.json())
+    .then(data => {
+      const el = document.getElementById("profile-sightings");
+      if (!data.length) {
+        el.innerHTML = '<p class="empty-msg">No sightings yet — go explore! 📷</p>';
+        return;
+      }
+      el.innerHTML = data.map(s => `
+        <div class="sighting-row">
+          <div class="sighting-emoji">${{bird:"🐦",insect:"🦋",plant:"🌸",animal:"🦊"}[s.category] || "🌿"}</div>
+          <div class="sighting-info">
+            <div class="sighting-name">${s.species}</div>
+            <div class="sighting-meta">${s.is_new ? "✨ New species!" : "Seen before"} · ${s.timestamp?.slice(0,10) || ""}</div>
+          </div>
+          <div class="sighting-pts ${s.is_new ? 'pts-new' : ''}">+${s.points} XP</div>
+        </div>`).join("");
+    });
+</script>
+{% endblock %}

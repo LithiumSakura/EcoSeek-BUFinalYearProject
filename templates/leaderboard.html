@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Leaderboard — EcoSeek{% endblock %}
+
+{% block content %}
+<div class="leaderboard-page">
+
+  <div class="lb-header">
+    <h1>🏆 Top Explorers</h1>
+    <p>This week's nature champions!</p>
+  </div>
+
+  <!-- Podium (top 3) -->
+  <div class="podium" id="podium">
+    <!-- filled by JS -->
+  </div>
+
+  <!-- Full list -->
+  <div class="lb-list" id="lb-list">
+    <p class="empty-msg">Loading leaderboard...</p>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  const currentUser = "{{ session['user_id'] }}";
+
+  fetch("/api/leaderboard")
+    .then(r => r.json())
+    .then(users => {
+      renderPodium(users.slice(0, 3));
+      renderList(users);
+    });
+
+  function renderPodium(top3) {
+    const order   = [1, 0, 2];  // 2nd, 1st, 3rd display order
+    const heights = ["60px", "80px", "44px"];
+    const colours = ["#7aab8a", "#2e7d4f", "#a8c5b0"];
+    const podium  = document.getElementById("podium");
+    podium.innerHTML = order.map((idx, pos) => {
+      const u = top3[idx];
+      if (!u) return "";
+      return `
+        <div class="podium-slot">
+          <div class="podium-avatar">${avatarEmoji(idx)}</div>
+          <div class="podium-name">${u.display_name}</div>
+          <div class="podium-pts">${u.total_points} XP</div>
+          <div class="podium-block" style="height:${heights[pos]};background:${colours[pos]}">${idx + 1}</div>
+        </div>`;
+    }).join("");
+  }
+
+  function renderList(users) {
+    const container = document.getElementById("lb-list");
+    container.innerHTML = users.map((u, i) => {
+      const isMe = u.user_id === currentUser;
+      return `
+        <div class="lb-row ${isMe ? 'lb-row-me' : ''}">
+          <div class="lb-rank">#${i + 1}</div>
+          <div class="lb-avatar" style="background:${rankColour(i)}">${avatarEmoji(i)}</div>
+          <div class="lb-info">
+            <div class="lb-name">${u.display_name}${isMe ? ' <span class="you-tag">You!</span>' : ''}</div>
+            <div class="lb-sub">${u.species_count} species found</div>
+          </div>
+          <div class="lb-score">${u.total_points} XP</div>
+        </div>`;
+    }).join("");
+  }
+
+  function avatarEmoji(i) {
+    return ["🦁","🌿","🌸","🐦","🦋","🦊","🐝","🌻","🐸","🦅"][i % 10];
+  }
+  function rankColour(i) {
+    return ["#2e7d4f","#7aab8a","#a8c5b0","#64b5f6","#e57373","#ff8f00"][Math.min(i, 5)];
+  }
+</script>
+{% endblock %}

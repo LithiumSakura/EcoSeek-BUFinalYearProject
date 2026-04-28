@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}EcoSeek 🌿{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Fredoka+One&display=swap" rel="stylesheet" />
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+  <!-- ── Top navigation bar (shown when logged in) ── -->
+  {% if session.get('user_id') %}
+  <nav class="topnav">
+    <a class="topnav-logo" href="{{ url_for('home') }}">Eco<span>Seek</span> 🌿</a>
+    <div class="topnav-links">
+      <a href="{{ url_for('home') }}"        class="nav-link {% if request.endpoint == 'home' %}active{% endif %}">🏠 Home</a>
+      <a href="{{ url_for('camera') }}"      class="nav-link {% if request.endpoint == 'camera' %}active{% endif %}">📷 Spot!</a>
+      <a href="{{ url_for('leaderboard') }}" class="nav-link {% if request.endpoint == 'leaderboard' %}active{% endif %}">🏆 Leaderboard</a>
+      <a href="{{ url_for('profile') }}"     class="nav-link {% if request.endpoint == 'profile' %}active{% endif %}">🌱 My Profile</a>
+      <a href="{{ url_for('auth.logout') }}" class="nav-link nav-logout">Log out</a>
+    </div>
+  </nav>
+  {% endif %}
+
+  <!-- ── Main content ── -->
+  <main class="main-content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- ── XP Toast notification (shown after a sighting) ── -->
+  <div id="xp-toast" class="xp-toast hidden">
+    <div class="xp-toast-inner">
+      <span class="xp-toast-num" id="xp-toast-num">+50</span>
+      <div>
+        <div class="xp-toast-label">XP Earned!</div>
+        <div class="xp-toast-sub" id="xp-toast-sub">New species!</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Badge popup ── -->
+  <div id="badge-popup" class="badge-popup hidden">
+    <div class="badge-popup-inner">
+      <div class="badge-popup-icon" id="badge-popup-icon">🏆</div>
+      <div class="badge-popup-title">Badge Unlocked!</div>
+      <div class="badge-popup-name" id="badge-popup-name">Explorer</div>
+      <button class="btn-primary" onclick="closeBadgePopup()">Awesome! 🎉</button>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  {% block extra_scripts %}{% endblock %}
+</body>
+</html>

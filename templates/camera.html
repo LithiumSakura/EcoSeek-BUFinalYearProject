@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Spot Something — EcoSeek{% endblock %}
+
+{% block content %}
+<div class="camera-page">
+
+  <!-- Camera viewfinder -->
+  <div class="viewfinder-wrap" id="viewfinder-wrap">
+    <video id="video" autoplay playsinline class="camera-video"></video>
+    <div class="viewfinder-overlay">
+      <div class="vf-corner tl"></div>
+      <div class="vf-corner tr"></div>
+      <div class="vf-corner bl"></div>
+      <div class="vf-corner br"></div>
+    </div>
+    <div class="vf-hint" id="vf-hint">Point at a plant or animal 🌿</div>
+    <canvas id="canvas" class="hidden"></canvas>
+  </div>
+
+  <!-- Upload fallback -->
+  <div class="camera-controls">
+    <button class="shutter-btn" id="shutter-btn" onclick="capturePhoto()">📷</button>
+    <label class="upload-btn" for="file-upload">🖼️ Upload photo</label>
+    <input type="file" id="file-upload" accept="image/*" class="hidden" onchange="handleUpload(event)" />
+  </div>
+
+  <!-- Result panel (hidden until identification done) -->
+  <div class="result-panel hidden" id="result-panel">
+    <div class="result-header">
+      <div class="result-emoji" id="result-emoji">🌿</div>
+      <div>
+        <div class="result-name" id="result-name">Identifying...</div>
+        <div class="result-sci"  id="result-sci"></div>
+      </div>
+    </div>
+
+    <div class="result-tags" id="result-tags"></div>
+
+    <div class="result-xp" id="result-xp" style="display:none">
+      <div class="result-xp-num" id="result-xp-num">+50</div>
+      <div>
+        <div class="result-xp-label">XP Earned!</div>
+        <div class="result-xp-sub"  id="result-xp-sub">New species!</div>
+      </div>
+    </div>
+
+    <div class="result-actions">
+      <button class="btn-primary btn-full" id="save-btn" onclick="saveSighting()">
+        Save to My Collection! 🌟
+      </button>
+      <button class="btn-outline btn-full" onclick="resetCamera()">Try another 📷</button>
+    </div>
+  </div>
+
+  <!-- Loading spinner -->
+  <div class="identifying-spinner hidden" id="spinner">
+    <div class="spinner-circle"></div>
+    <p>Identifying... 🔍</p>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/camera.js') }}"></script>
+{% endblock %}

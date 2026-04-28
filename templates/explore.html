@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Explore — EcoSeek{% endblock %}
+
+{% block content %}
+<div class="explore-page">
+  <div class="explore-header">
+    <h1>🗺️ Nature Near You</h1>
+    <p>See what other explorers have spotted!</p>
+  </div>
+  <div id="map" class="explore-map">
+    <p class="empty-msg" style="padding:40px;text-align:center">Loading map...</p>
+  </div>
+  <div class="explore-list">
+    <h2 class="card-title">Recent Sightings Nearby</h2>
+    <div id="nearby-list" class="sighting-list">
+      <p class="empty-msg">Loading...</p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  fetch("/api/nearby")
+    .then(r => r.json())
+    .then(data => {
+      const el = document.getElementById("nearby-list");
+      if (!data.length) {
+        el.innerHTML = '<p class="empty-msg">No nearby sightings yet — be the first! 🌿</p>';
+        return;
+      }
+      el.innerHTML = data.map(s => `
+        <div class="sighting-row">
+          <div class="sighting-emoji">${{bird:"🐦",insect:"🦋",plant:"🌸",animal:"🦊"}[s.category]||"🌿"}</div>
+          <div class="sighting-info">
+            <div class="sighting-name">${s.species}</div>
+            <div class="sighting-meta">${s.category || "Nature"}</div>
+          </div>
+        </div>`).join("");
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}Home — EcoSeek{% endblock %}
+
+{% block content %}
+<div class="dashboard">
+
+  <!-- Welcome banner -->
+  <section class="dash-banner">
+    <div class="dash-banner-text">
+      <h1>Hello, {{ user.get('display_name', 'Explorer') }}! 👋</h1>
+      <p>Keep exploring — every discovery earns you XP!</p>
+    </div>
+    <div class="dash-xp-pill">
+      ⭐ <strong id="total-xp">{{ user.get('total_points', 0) }}</strong> XP
+    </div>
+  </section>
+
+  <!-- Streak -->
+  <section class="dash-streak card">
+    <h2 class="card-title">🔥 Daily Streak</h2>
+    <div class="streak-days" id="streak-days">
+      <!-- filled by JS -->
+    </div>
+    <p class="streak-label" id="streak-label">Loading streak...</p>
+  </section>
+
+  <!-- Quick actions -->
+  <section class="quick-actions">
+    <a href="{{ url_for('camera') }}" class="qa-card qa-camera">
+      <div class="qa-icon">📷</div>
+      <div class="qa-label">Spot Something!</div>
+      <div class="qa-sub">Identify nature around you</div>
+    </a>
+    <a href="{{ url_for('leaderboard') }}" class="qa-card">
+      <div class="qa-icon">🏆</div>
+      <div class="qa-label">Leaderboard</div>
+      <div class="qa-sub">See how you rank</div>
+    </a>
+    <a href="{{ url_for('profile') }}" class="qa-card">
+      <div class="qa-icon">🎖️</div>
+      <div class="qa-label">My Badges</div>
+      <div class="qa-sub">View your collection</div>
+    </a>
+    <a href="{{ url_for('explore') }}" class="qa-card">
+      <div class="qa-icon">🗺️</div>
+      <div class="qa-label">Explore Map</div>
+      <div class="qa-sub">See nearby sightings</div>
+    </a>
+  </section>
+
+  <!-- Level progress -->
+  <section class="card">
+    <h2 class="card-title">📈 Your Level</h2>
+    <div class="level-info">
+      <span class="level-name" id="level-name">Loading...</span>
+      <span class="level-num" id="level-num"></span>
+    </div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" id="level-bar" style="width:0%"></div>
+    </div>
+    <p class="progress-label" id="level-label"></p>
+  </section>
+
+  <!-- Recent sightings -->
+  <section class="card">
+    <h2 class="card-title">🌿 Recent Finds</h2>
+    <div id="recent-sightings" class="sighting-list">
+      <p class="empty-msg">Loading your recent finds...</p>
+    </div>
+  </section>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  // Load recent sightings
+  fetch("/api/sightings/{{ session['user_id'] }}")
+    .then(r => r.json())
+    .then(data => {
+      const container = document.getElementById("recent-sightings");
+      if (!data.length) {
+        container.innerHTML = '<p class="empty-msg">No sightings yet — go spot something! 📷</p>';
+        return;
+      }
+      container.innerHTML = data.slice(0, 5).map(s => `
+        <div class="sighting-row">
+          <div class="sighting-emoji">${categoryEmoji(s.category)}</div>
+          <div class="sighting-info">
+            <div class="sighting-name">${s.species}</div>
+            <div class="sighting-meta">${s.is_new ? "✨ New species!" : "Seen before"}</div>
+          </div>
+          <div class="sighting-pts ${s.is_new ? 'pts-new' : ''}">+${s.points} XP</div>
+        </div>
+      `).join("");
+    });
+
+  function categoryEmoji(cat) {
+    return {bird:"🐦", insect:"🦋", plant:"🌸", animal:"🦊"}[cat] || "🌿";
+  }
+
+  // Level bar
+  const totalXp = {{ user.get('total_points', 0) }};
+  fetch("/api/level?xp=" + totalXp)
+    .then(r => r.json())
+    .then(d => {
+      document.getElementById("level-name").textContent = d.level_name;
+      document.getElementById("level-num").textContent  = "Level " + d.level_num;
+      document.getElementById("level-bar").style.width  = d.progress_pct + "%";
+      document.getElementById("level-label").textContent =
+        d.xp_into_level + " / " + d.xp_needed + " XP to next level";
+    });
+
+  // Streak display
+  const streak = {{ user.get('streak_days', 0) }};
+  const days   = ["M","T","W","T","F","S","S"];
+  const today  = new Date().getDay(); // 0=Sun
+  const reordered = [...days.slice(1), days[0]]; // Mon-Sun
+  document.getElementById("streak-days").innerHTML = reordered.map((d, i) => {
+    const cls = i < streak ? "streak-day done" : i === streak ? "streak-day today" : "streak-day miss";
+    return `<div class="${cls}">${d}</div>`;
+  }).join("");
+  document.getElementById("streak-label").textContent =
+    streak >= 7 ? `🔥 ${streak}-day streak — amazing!` :
+    streak > 0  ? `🔥 ${streak}-day streak — keep it up!` :
+    "Start your streak today!";
+</script>
+{% endblock %}

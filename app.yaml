@@ -1,0 +1,18 @@
+runtime: python311
+
+instance_class: F1
+
+env_variables:
+  GOOGLE_CLOUD_PROJECT: 'ecoseek-individualproject'
+  SECRET_KEY: 'your-secret-key-change-this'
+
+handlers:
+  - url: /static
+    static_dir: static
+
+  - url: /.*
+    script: auto
+
+automatic_scaling:
+  min_instances: 0
+  max_instances: 2

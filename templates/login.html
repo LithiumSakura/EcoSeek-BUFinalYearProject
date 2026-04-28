@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Login — EcoSeek{% endblock %}
+
+{% block content %}
+<div class="auth-wrap">
+  <div class="auth-card">
+    <div class="auth-logo">🌿</div>
+    <h1 class="auth-title">Welcome back, Explorer!</h1>
+    <p class="auth-sub">Sign in to continue your adventure</p>
+
+    <div id="error-msg" class="error-banner hidden"></div>
+
+    <!-- Email / password form -->
+    <div class="form-group">
+      <label for="email">Email</label>
+      <input type="email" id="email" placeholder="your@email.com" class="form-input" />
+    </div>
+    <div class="form-group">
+      <label for="password">Password</label>
+      <input type="password" id="password" placeholder="Your password" class="form-input" />
+    </div>
+
+    <button class="btn-primary btn-full" onclick="emailLogin()">Log In 🚀</button>
+
+    <div class="auth-divider"><span>or</span></div>
+
+    <!-- Google sign-in -->
+    <button class="btn-google btn-full" onclick="googleLogin()">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" width="20"/>
+      Continue with Google
+    </button>
+
+    <p class="auth-switch">Don't have an account? <a href="{{ url_for('auth.register') }}">Sign up free!</a></p>
+  </div>
+</div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+
+{% block extra_scripts %}
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyDMKH7ZLgRdT9BGmjDmjU93XJNNScB2Z9w",
+    authDomain: "ecoseek-individualproject.firebaseapp.com",
+    projectId: "ecoseek-individualproject",
+    storageBucket: "ecoseek-individualproject.firebasestorage.app",
+    messagingSenderId: "352328535082",
+    appId: "1:352328535082:web:f00621bfa17e933e2e4753"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+
+  async function emailLogin() {
+    const email    = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    try {
+      const cred = await auth.signInWithEmailAndPassword(email, password);
+      const token = await cred.user.getIdToken();
+      await sendToken(token);
+    } catch (e) {
+      showError(e.message);
+    }
+  }
+
+  async function googleLogin() {
+    try {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      const cred     = await auth.signInWithPopup(provider);
+      const token    = await cred.user.getIdToken();
+      const resp     = await fetch("/auth/google-callback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id_token: token })
+      });
+      const data = await resp.json();
+      if (data.redirect) window.location.href = data.redirect;
+      else showError(data.error);
+    } catch (e) {
+      showError(e.message);
+    }
+  }
+
+  async function sendToken(token) {
+    const resp = await fetch("/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id_token: token })
+    });
+    const data = await resp.json();
+    if (data.redirect) window.location.href = data.redirect;
+    else showError(data.error);
+  }
+
+  function showError(msg) {
+    const el = document.getElementById("error-msg");
+    el.textContent = msg;
+    el.classList.remove("hidden");
+  }
+</script>
+{% endblock %}
+{% endblock %}
