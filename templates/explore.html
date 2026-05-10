@@ -31,7 +31,7 @@
       }
       el.innerHTML = data.map(s => `
         <div class="sighting-row">
-          <div class="sighting-emoji" data-category="{{ s.category }}"></div>
+          <div class="sighting-emoji" data-category="${s.category}"></div>
           <div class="sighting-info">
             <div class="sighting-name">${s.species}</div>
             <div class="sighting-meta">${s.category || "Nature"}</div>
