@@ -13,17 +13,6 @@ load_dotenv()
 import firebase_admin
 from firebase_admin import credentials, firestore
 
-from auth import auth_bp
-from api import api_bp
-from database.sql_db import init_db, get_user_rank
-from scoring import get_level
-
-app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "pineapple-cherry-kuromi-scrunchie-cards")
-
-app.register_blueprint(auth_bp, url_prefix="/auth")
-app.register_blueprint(api_bp,  url_prefix="/api")
-
 if not firebase_admin._apps:
     key_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", "firebase-key.json")
     if os.path.exists(key_path):
@@ -35,6 +24,17 @@ if not firebase_admin._apps:
     })
 
 db = firestore.client()
+
+from auth import auth_bp
+from api import api_bp
+from database.sql_db import init_db, get_user_rank
+from scoring import get_level
+
+app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY", "pineapple-cherry-kuromi-scrunchie-cards")
+
+app.register_blueprint(auth_bp, url_prefix="/auth")
+app.register_blueprint(api_bp,  url_prefix="/api")
 
 def login_required(f):
     @wraps(f)
