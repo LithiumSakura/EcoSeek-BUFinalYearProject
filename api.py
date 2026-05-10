@@ -49,50 +49,55 @@ def api_login_required(f):
 @api_bp.route("/identify", methods=["POST"])
 @api_login_required
 def identify():
-    """
-    Accepts a base64 image, calls Google Vision API,
-    returns species name + info.
-    """
-    data = request.get_json()
-    image_b64 = data.get("image_b64")
-    if not image_b64:
-        return jsonify({"error": "No image provided"}), 400
+    try:
+        """
+        Accepts a base64 image, calls Google Vision API,
+        returns species name + info.
+        """
+        data = request.get_json()
+        image_b64 = data.get("image_b64")
+        if not image_b64:
+            return jsonify({"error": "No image provided"}), 400
 
-    payload = {
-        "requests": [{
-            "image": {"content": image_b64},
-            "features": [
-                {"type": "LABEL_DETECTION", "maxResults": 10},
-                {"type": "WEB_DETECTION", "maxResults": 5}
-            ]
-        }]
-    }
+        payload = {
+            "requests": [{
+                "image": {"content": image_b64},
+                "features": [
+                    {"type": "LABEL_DETECTION", "maxResults": 10},
+                    {"type": "WEB_DETECTION", "maxResults": 5}
+                ]
+            }]
+        }
 
-    resp = requests.post(
-        VISION_URL,
-        params={"key": VISION_API_KEY},
-        json=payload,
-        timeout=10
-    )
-    if not resp.ok:
-        return jsonify({"error": "Vision API error"}), 502
+        resp = requests.post(
+            VISION_URL,
+            params={"key": VISION_API_KEY},
+            json=payload,
+            timeout=10
+        )
+        if not resp.ok:
+            print(f"VISION API RESPONSE: {resp.status_code} - {resp.text}")
+            return jsonify({"error": "Vision API error"}), 502
 
-    vision_data = resp.json()["responses"][0]
-    labels = [l["description"] for l in vision_data.get("labelAnnotations", [])]
-    web_entities = [e["description"] for e in
-                    vision_data.get("webDetection", {}).get("webEntities", [])
-                    if e.get("score", 0) > 0.5]
+        vision_data = resp.json()["responses"][0]
+        labels = [l["description"] for l in vision_data.get("labelAnnotations", [])]
+        web_entities = [e["description"] for e in
+                        vision_data.get("webDetection", {}).get("webEntities", [])
+                        if e.get("score", 0) > 0.5]
 
-    # Best guess at species
-    species = web_entities[0] if web_entities else (labels[0] if labels else "Unknown")
-    category = _guess_category(labels)
+        # Best guess at species
+        species = web_entities[0] if web_entities else (labels[0] if labels else "Unknown")
+        category = _guess_category(labels)
 
-    return jsonify({
-        "species": species,
-        "category": category,
-        "labels": labels[:5],
-        "confidence": round(vision_data.get("labelAnnotations", [{}])[0].get("score", 0) * 100)
-    })
+        return jsonify({
+            "species": species,
+            "category": category,
+            "labels": labels[:5],
+            "confidence": round(vision_data.get("labelAnnotations", [{}])[0].get("score", 0) * 100)
+        })
+    except Exception as e:
+        print(f"IDENTIFY ERROR: {e}")
+        return {"error": str(e)}, 500
 
 
 # ── /api/sighting  ───────────────────────────────────────────────
