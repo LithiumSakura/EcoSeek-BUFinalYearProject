@@ -30,3 +30,8 @@ function closeBadgePopup() {
 function categoryEmoji(cat) {
   return { bird: "🐦", insect: "🦋", plant: "🌸", animal: "🦊" }[cat] || "🌿";
 }
+
+const emojiMap = {bird:"🐦", insect:"🦋", plant:"🌸", animal:"🦊"};
+document.querySelectorAll('.sighting-emoji').forEach(el => {
+  el.textContent = emojiMap[el.dataset.category] || "🌿";
+});
