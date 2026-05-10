@@ -123,9 +123,10 @@
         el.innerHTML = '<p class="empty-msg">No sightings yet — go explore! 📷</p>';
         return;
       }
+      const emojiMap = {bird:"🐦", insect:"🪲", plant:"🌸", animal:"🐾"};
       el.innerHTML = data.map(s => `
         <div class="sighting-row">
-          <div class="sighting-emoji">${{bird:"🐦",insect:"🦋",plant:"🌸",animal:"🦊"}[s.category] || "🌿"}</div>
+          <div class="sighting-emoji">${emojiMap[s.category] || "🌿"}</div>
           <div class="sighting-info">
             <div class="sighting-name">${s.species}</div>
             <div class="sighting-meta">${s.is_new ? "✨ New species!" : "Seen before"} · ${s.timestamp?.slice(0,10) || ""}</div>
