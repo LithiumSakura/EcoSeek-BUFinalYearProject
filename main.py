@@ -19,7 +19,7 @@ from database.sql_db import init_db, get_user_rank
 from scoring import get_level
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-in-prod")
+app.secret_key = os.environ.get("SECRET_KEY", "pineapple-cherry-kuromi-scrunchie-cards")
 
 app.register_blueprint(auth_bp, url_prefix="/auth")
 app.register_blueprint(api_bp,  url_prefix="/api")
@@ -31,7 +31,7 @@ if not firebase_admin._apps:
     else:
         cred = credentials.ApplicationDefault()
     firebase_admin.initialize_app(cred, {
-        "projectId": os.environ.get("GOOGLE_CLOUD_PROJECT", "your-project-id")
+        "projectId": os.environ.get("GOOGLE_CLOUD_PROJECT", "ecoseek-buproject-f015d")
     })
 
 db = firestore.client()
