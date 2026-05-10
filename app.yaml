@@ -3,8 +3,8 @@ runtime: python311
 instance_class: F1
 
 env_variables:
-  GOOGLE_CLOUD_PROJECT: 'ecoseek-individualproject'
-  SECRET_KEY: 'your-secret-key-change-this'
+  GOOGLE_CLOUD_PROJECT: 'ecoseek-buproject-f015d'
+  SECRET_KEY: 'pineapple-cherry-kuromi-scrunchie-cards'
 
 handlers:
   - url: /static
