@@ -11,12 +11,10 @@ import os
 
 auth_bp = Blueprint("auth", __name__)
 
-
-# ── Helper ───────────────────────────────────────────────────────
+# ── Helpers ─────────────────────────────────────────────────────
 def is_safe_username(username: str) -> bool:
     """Allow letters, digits, underscores, hyphens, 3-20 chars."""
     return bool(re.match(r"^[a-zA-Z0-9_\-]{3,20}$", username))
-
 
 def _create_session(decoded: dict):
     """Populate Flask session from a decoded Firebase token."""
@@ -24,12 +22,10 @@ def _create_session(decoded: dict):
     session["email"]        = decoded.get("email", "")
     session["display_name"] = decoded.get("name", decoded.get("display_name", "Explorer"))
 
-
 def _upsert_leaderboard(user_id: str, display_name: str):
     """Ensure user exists in the SQL leaderboard table."""
     from database.sql_db import upsert_user
     upsert_user(user_id, display_name)
-
 
 def _upsert_firestore(user_id: str, display_name: str, email: str):
     """Create Firestore user document if it doesn't exist yet."""
@@ -67,7 +63,6 @@ def login():
     except Exception as e:
         return jsonify({"error": str(e)}), 401
 
-
 @auth_bp.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "GET":
@@ -97,7 +92,6 @@ def register():
     except firebase_admin.exceptions.FirebaseError as e:
         return jsonify({"error": str(e)}), 400
 
-
 @auth_bp.route("/google-callback", methods=["POST"])
 def google_callback():
     """Receive Google OAuth ID token from client, create session."""
@@ -111,7 +105,6 @@ def google_callback():
         return jsonify({"redirect": url_for("home")}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 401
-
 
 @auth_bp.route("/logout")
 def logout():

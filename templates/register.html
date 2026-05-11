@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Sign Up — EcoSeek{% endblock %}
+{% block title %}Sign Up to EcoSeek{% endblock %}
 
 {% block content %}
 <div class="auth-wrap">
@@ -64,7 +64,6 @@
     btn.disabled    = true;
     btn.textContent = "Creating account…";
 
-    // Step 1 — create the user via our Flask backend (Firebase Admin)
     const resp = await fetch("/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -81,12 +80,10 @@
 
     showSuccess("Account created! Logging you in…");
 
-    // Step 2 — sign in on the Firebase client side to get an ID token
     try {
       const cred  = await auth.signInWithEmailAndPassword(email, password);
       const token = await cred.user.getIdToken();
 
-      // Step 3 — exchange token for a Flask session
       const r2 = await fetch("/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -101,7 +98,6 @@
         window.location.href = "/home";
       }
     } catch (firebaseErr) {
-      // Firebase client sign-in failed — still registered, just ask them to log in
       showSuccess("Account created! Please log in to continue.");
       setTimeout(() => { window.location.href = "/auth/login"; }, 1500);
     }

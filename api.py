@@ -1,6 +1,6 @@
 """
 EcoSeek — REST API Blueprint
-All /api/* endpoints. Returns JSON.
+All /api/ endpoints. Returns JSON.
 """
 
 import os
@@ -86,7 +86,6 @@ def identify():
     except Exception as e:
         print(f"IDENTIFY ERROR: {e}")
         return jsonify({"error": str(e)}), 500
-
 
 # ── /api/sighting  ───────────────────────────────────────────────
 @api_bp.route("/sighting", methods=["POST"])
@@ -191,7 +190,6 @@ def save_sighting():
         "badges_awarded": awarded
     }), 201
 
-
 # ── /api/leaderboard ─────────────────────────────────────────────
 @api_bp.route("/leaderboard")
 def leaderboard():
@@ -204,7 +202,6 @@ def leaderboard():
             LIMIT 20
         """).fetchall()
     return jsonify([dict(r) for r in rows])
-
 
 # ── /api/sightings/<user_id> ─────────────────────────────────────
 @api_bp.route("/sightings/<user_id>")
@@ -222,7 +219,6 @@ def get_sightings(user_id):
         .get()
     )
     return jsonify([{"id": d.id, **d.to_dict()} for d in docs])
-
 
 # ── /api/nearby ──────────────────────────────────────────────────
 @api_bp.route("/nearby")
@@ -248,7 +244,6 @@ def nearby_sightings():
                 "timestamp": d_dict.get("timestamp", ""),
             })
     return jsonify(results)
-
 
 # ── /api/profile/photo ───────────────────────────────────────────
 @api_bp.route("/profile/photo", methods=["POST"])

@@ -7,8 +7,7 @@ import sqlite3
 import os
 from contextlib import contextmanager
 
-# On App Engine GAE_ENV is set; use /tmp (ephemeral but fine for leaderboard cache)
-# Locally, use ecoseek.db in the project root
+
 DB_PATH = os.environ.get(
     "SQL_DB_PATH",
     "/tmp/ecoseek.db" if os.environ.get("GAE_ENV") else "ecoseek.db"
@@ -44,7 +43,6 @@ def init_db():
         conn.executescript(_SCHEMA)
         conn.commit()
 
-
 @contextmanager
 def get_db_connection():
     """Context manager — always closes the connection cleanly."""
@@ -57,7 +55,6 @@ def get_db_connection():
         yield conn
     finally:
         conn.close()
-
 
 def upsert_user(user_id: str, display_name: str):
     """
@@ -73,7 +70,6 @@ def upsert_user(user_id: str, display_name: str):
         """, (user_id, display_name))
         conn.commit()
 
-
 def add_points(user_id: str, points: int, is_new_species: bool):
     """Add XP to a user's score and optionally increment species count."""
     with get_db_connection() as conn:
@@ -86,7 +82,6 @@ def add_points(user_id: str, points: int, is_new_species: bool):
         """, (points, 1 if is_new_species else 0, user_id))
         conn.commit()
 
-
 def get_top_users(limit: int = 20) -> list:
     """Return top N users ordered by total points."""
     with get_db_connection() as conn:
@@ -97,7 +92,6 @@ def get_top_users(limit: int = 20) -> list:
             LIMIT ?
         """, (limit,)).fetchall()
     return [dict(r) for r in rows]
-
 
 def get_user_rank(user_id: str) -> int:
     """Return the rank (1-based) of a specific user."""
@@ -110,7 +104,6 @@ def get_user_rank(user_id: str) -> int:
             )
         """, (user_id,)).fetchone()
     return result["rank"] if result else 1
-
 
 def log_sighting(user_id: str, species: str, category: str, points: int, is_new: bool):
     """Record a sighting in the SQL log for audit purposes."""
