@@ -3,36 +3,25 @@ EcoSeek — REST API Blueprint
 All /api/* endpoints. Returns JSON.
 """
 
-import firebase_admin
-from firebase_admin import credentials, firestore
 import os
-
-if not firebase_admin._apps:
-    key_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", "firebase-key.json")
-    if os.path.exists(key_path):
-        cred = credentials.Certificate(key_path)
-        firebase_admin.initialize_app(cred, {
-            "projectId": os.environ.get("GOOGLE_CLOUD_PROJECT", "ecoseek-individualproject")
-        })
-
-db = firestore.client()
-
 from flask import Blueprint, request, jsonify, session
 from functools import wraps
 from firebase_admin import firestore
+import firebase_admin
 import requests
-import os
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
-from database.sql_db import get_db_connection
+from database.sql_db import get_db_connection, upsert_user
 from scoring import calculate_points
 
-api_bp = Blueprint("api", __name__)
+# Firestore client — initialised in main.py before this is imported
 def get_db():
     return firestore.client()
 
+api_bp = Blueprint("api", __name__)
+
 VISION_API_KEY = os.environ.get("VISION_API_KEY", "")
-VISION_URL = "https://vision.googleapis.com/v1/images:annotate"
+VISION_URL     = "https://vision.googleapis.com/v1/images:annotate"
 
 
 # ── Auth guard ───────────────────────────────────────────────────
@@ -49,11 +38,11 @@ def api_login_required(f):
 @api_bp.route("/identify", methods=["POST"])
 @api_login_required
 def identify():
+    """
+    Accepts a base64 image, calls Google Vision API,
+    returns species name + info.
+    """
     try:
-        """
-        Accepts a base64 image, calls Google Vision API,
-        returns species name + info.
-        """
         data = request.get_json()
         image_b64 = data.get("image_b64")
         if not image_b64:
@@ -64,7 +53,7 @@ def identify():
                 "image": {"content": image_b64},
                 "features": [
                     {"type": "LABEL_DETECTION", "maxResults": 10},
-                    {"type": "WEB_DETECTION", "maxResults": 5}
+                    {"type": "WEB_DETECTION",   "maxResults": 5}
                 ]
             }]
         }
@@ -80,24 +69,23 @@ def identify():
             return jsonify({"error": "Vision API error"}), 502
 
         vision_data = resp.json()["responses"][0]
-        labels = [l["description"] for l in vision_data.get("labelAnnotations", [])]
+        labels      = [l["description"] for l in vision_data.get("labelAnnotations", [])]
         web_entities = [e["description"] for e in
                         vision_data.get("webDetection", {}).get("webEntities", [])
                         if e.get("score", 0) > 0.5]
 
-        # Best guess at species
-        species = web_entities[0] if web_entities else (labels[0] if labels else "Unknown")
+        species  = web_entities[0] if web_entities else (labels[0] if labels else "Unknown")
         category = _guess_category(labels)
 
         return jsonify({
-            "species": species,
-            "category": category,
-            "labels": labels[:5],
+            "species":    species,
+            "category":   category,
+            "labels":     labels[:5],
             "confidence": round(vision_data.get("labelAnnotations", [{}])[0].get("score", 0) * 100)
         })
     except Exception as e:
         print(f"IDENTIFY ERROR: {e}")
-        return {"error": str(e)}, 500
+        return jsonify({"error": str(e)}), 500
 
 
 # ── /api/sighting  ───────────────────────────────────────────────
@@ -108,13 +96,18 @@ def save_sighting():
     Save a confirmed sighting to Firestore (NoSQL) and
     update the SQL leaderboard score.
     """
-    user_id = session["user_id"]
-    data = request.get_json()
-    species = data.get("species", "Unknown")
+    db = get_db()
+    user_id  = session["user_id"]
+    username = session.get("display_name", "Explorer")
+    data     = request.get_json()
+    species  = data.get("species", "Unknown")
     category = data.get("category", "other")
-    lat = data.get("lat")
-    lng = data.get("lng")
+    lat      = data.get("lat")
+    lng      = data.get("lng")
     image_b64 = data.get("image_b64", "")
+
+    # Ensure user row exists in SQL leaderboard
+    upsert_user(user_id, username)
 
     # Check if this is a new species for the user
     existing = (
@@ -126,81 +119,75 @@ def save_sighting():
     )
     is_new = len(existing) == 0
 
-    # Get current streak from Firestore first
-    user_ref = db.collection("users").document(user_id)
-    user_data = user_ref.get().to_dict() or {}
-    today = datetime.now(timezone.utc).date().isoformat()
-    last_active = user_data.get("last_active", "")
-    current_streak = user_data.get("day_streak", 0)
+    # ── Streak calculation ────────────────────────────────────────
+    user_ref  = db.collection("users").document(user_id)
+    user_snap = user_ref.get()
+    user_data = user_snap.to_dict() if user_snap.exists else {}
 
-    from datetime import timedelta
+    today     = datetime.now(timezone.utc).date().isoformat()
     yesterday = (datetime.now(timezone.utc).date() - timedelta(days=1)).isoformat()
-    if last_active == today:
-        new_streak = current_streak
-    elif last_active == yesterday:
-        new_streak = current_streak + 1
-    else:
-        new_streak = 1
+    last_active     = user_data.get("last_active", "")
+    current_streak  = user_data.get("day_streak", 0)
 
-    # NOW calculate points with correct streak
+    if last_active == today:
+        new_streak = current_streak          # already logged today
+    elif last_active == yesterday:
+        new_streak = current_streak + 1      # continuing streak
+    else:
+        new_streak = 1                        # streak reset
+
+    # ── Points ───────────────────────────────────────────────────
     points = calculate_points(species, is_new, streak_days=new_streak)
 
-    # --- Firestore: store rich sighting document (NoSQL) ---
+    # ── Firestore: store sighting ─────────────────────────────────
     sighting_ref = db.collection("sightings").document()
     sighting_ref.set({
-        "user_id": user_id,
-        "species": species,
-        "category": category,
-        "is_new": is_new,
-        "points": points,
-        "lat": lat,
-        "lng": lng,
-        "image_b64": image_b64[:500] if image_b64 else "",  # thumbnail stub
+        "user_id":   user_id,
+        "species":   species,
+        "category":  category,
+        "is_new":    is_new,
+        "points":    points,
+        "lat":       lat,
+        "lng":       lng,
+        "image_b64": image_b64[:500] if image_b64 else "",
         "timestamp": datetime.now(timezone.utc).isoformat()
     })
 
-    # --- SQL: update leaderboard score ---
+    # ── SQL: upsert leaderboard row ───────────────────────────────
     with get_db_connection() as conn:
         conn.execute("""
-            INSERT INTO leaderboard (user_id, total_points, species_count)
-            VALUES (?, ?, ?)
+            INSERT INTO leaderboard (user_id, display_name, total_points, species_count)
+            VALUES (?, ?, ?, ?)
             ON CONFLICT(user_id) DO UPDATE SET
-                total_points = total_points + ?,
-                species_count = species_count + ?
-        """, (user_id, points, 1 if is_new else 0,
-                points, 1 if is_new else 0))
+                total_points  = total_points  + ?,
+                species_count = species_count + ?,
+                display_name  = excluded.display_name,
+                last_seen     = datetime('now')
+        """, (
+            user_id, username, points, 1 if is_new else 0,
+            points, 1 if is_new else 0
+        ))
         conn.commit()
 
-    # --- Firestore: update user profile stats ---
-    user_ref = db.collection("users").document(user_id)
-    today = datetime.now(timezone.utc).date().isoformat()
-
-    user_data = user_ref.get().to_dict() or {}
-    last_active = user_data.get("last_active", "")
-    current_streak = user_data.get("day_streak", 0)
-
-    # Streak logic
-    if last_active == today:
-        new_streak = current_streak  # already logged today
-    else:
-        yesterday = (datetime.now(timezone.utc).date() - __import__('datetime').timedelta(days=1)).isoformat()
-        new_streak = current_streak + 1 if last_active == yesterday else 1
-
+    # ── Firestore: update user profile ───────────────────────────
     update_data = {
-        "total_xp": firestore.Increment(points),
-        "day_streak": new_streak,
+        "total_xp":    firestore.Increment(points),
+        "day_streak":  new_streak,
         "last_active": today,
     }
     if is_new:
-        update_data["species_count"] = firestore.Increment(1)
-        update_data[f"{category}_count"] = firestore.Increment(1)
+        update_data["species_count"]      = firestore.Increment(1)
+        update_data[f"{category}_count"]  = firestore.Increment(1)
 
     user_ref.set(update_data, merge=True)
 
+    # ── Badge check ───────────────────────────────────────────────
+    awarded = _check_badges(user_id, category, is_new)
+
     return jsonify({
-        "points": points,
-        "is_new": is_new,
-        "sighting_id": sighting_ref.id,
+        "points":         points,
+        "is_new":         is_new,
+        "sighting_id":    sighting_ref.id,
         "badges_awarded": awarded
     }), 201
 
@@ -208,7 +195,7 @@ def save_sighting():
 # ── /api/leaderboard ─────────────────────────────────────────────
 @api_bp.route("/leaderboard")
 def leaderboard():
-    """Top 20 users from SQL leaderboard table."""
+    """Top 20 users from SQL leaderboard table, with display_name."""
     with get_db_connection() as conn:
         rows = conn.execute("""
             SELECT user_id, display_name, total_points, species_count
@@ -226,6 +213,7 @@ def get_sightings(user_id):
     """Get all sightings for a user from Firestore."""
     if session["user_id"] != user_id:
         return jsonify({"error": "Forbidden"}), 403
+    db = get_db()
     docs = (
         db.collection("sightings")
         .where("user_id", "==", user_id)
@@ -241,18 +229,53 @@ def get_sightings(user_id):
 @api_login_required
 def nearby_sightings():
     """Recent sightings from all users for the explore map."""
+    db = get_db()
     docs = (
         db.collection("sightings")
         .order_by("timestamp", direction=firestore.Query.DESCENDING)
         .limit(100)
         .get()
     )
-    return jsonify([{
-        "species": d.to_dict().get("species"),
-        "category": d.to_dict().get("category"),
-        "lat": d.to_dict().get("lat"),
-        "lng": d.to_dict().get("lng"),
-    } for d in docs if d.to_dict().get("lat")])
+    results = []
+    for d in docs:
+        d_dict = d.to_dict()
+        if d_dict.get("lat") and d_dict.get("lng"):
+            results.append({
+                "species":   d_dict.get("species"),
+                "category":  d_dict.get("category"),
+                "lat":       d_dict.get("lat"),
+                "lng":       d_dict.get("lng"),
+                "timestamp": d_dict.get("timestamp", ""),
+            })
+    return jsonify(results)
+
+
+# ── /api/profile/photo ───────────────────────────────────────────
+@api_bp.route("/profile/photo", methods=["POST"])
+@api_login_required
+def update_profile_photo():
+    """
+    Store a base64 profile photo for the current user.
+    Saves a small thumbnail to Firestore (max ~50 KB).
+    For production you'd upload to Cloud Storage instead.
+    """
+    db = get_db()
+    user_id = session["user_id"]
+    data    = request.get_json()
+    photo_b64 = data.get("photo_b64", "")
+
+    if not photo_b64:
+        return jsonify({"error": "No photo provided"}), 400
+
+    # Limit stored size — frontend should send a resized thumbnail
+    if len(photo_b64) > 70000:
+        return jsonify({"error": "Image too large — please use a smaller photo"}), 400
+
+    user_ref = get_db().collection("users").document(user_id)
+    user_ref.set({"photo_url": photo_b64}, merge=True)
+    session["photo_url"] = photo_b64
+
+    return jsonify({"message": "Photo updated!"}), 200
 
 
 # ── Helpers ──────────────────────────────────────────────────────
@@ -270,29 +293,32 @@ def _guess_category(labels: list) -> str:
 
 
 BADGE_RULES = {
-    "first_find": {"label": "First Find", "icon": "🌱", "threshold": 1},
-    "bird_5": {"label": "Bird Watcher", "icon": "🐦", "threshold": 5, "category": "bird"},
-    "insect_5": {"label": "Bug Hunter", "icon": "🦋", "threshold": 5, "category": "insect"},
-    "plant_10": {"label": "Botanist", "icon": "🌸", "threshold": 10, "category": "plant"},
-    "species_25": {"label": "Explorer 25", "icon": "🗺️", "threshold": 25},
-    "species_50": {"label": "Explorer 50", "icon": "🌍", "threshold": 50},
+    "first_find":  {"label": "First Find",      "icon": "🌱", "threshold": 1},
+    "bird_5":      {"label": "Bird Watcher",     "icon": "🐦", "threshold": 5,  "category": "bird"},
+    "insect_5":    {"label": "Bug Hunter",       "icon": "🦋", "threshold": 5,  "category": "insect"},
+    "plant_10":    {"label": "Botanist",         "icon": "🌸", "threshold": 10, "category": "plant"},
+    "animal_5":    {"label": "Animal Spotter",   "icon": "🦊", "threshold": 5,  "category": "animal"},
+    "species_10":  {"label": "Explorer 10",      "icon": "🗺️", "threshold": 10},
+    "species_25":  {"label": "Explorer 25",      "icon": "🌍", "threshold": 25},
+    "species_50":  {"label": "Champion",         "icon": "🏆", "threshold": 50},
 }
 
 
 def _check_badges(user_id: str, category: str, is_new: bool) -> list:
-    """Award badges if thresholds are newly crossed. Returns list of awarded badge keys."""
-    awarded = []
-    user_ref = db.collection("users").document(user_id)
+    """Award badges if thresholds are newly crossed. Returns list of awarded badge dicts."""
+    db = get_db()
+    awarded   = []
+    user_ref  = db.collection("users").document(user_id)
     user_data = user_ref.get().to_dict() or {}
     existing_badges = set(user_data.get("badges", []))
 
     total_species = user_data.get("species_count", 0) + (1 if is_new else 0)
-    cat_count = user_data.get(f"{category}_count", 0) + (1 if is_new else 0)
+    cat_count     = user_data.get(f"{category}_count", 0) + (1 if is_new else 0)
 
     for key, rule in BADGE_RULES.items():
         if key in existing_badges:
             continue
-        cat = rule.get("category")
+        cat   = rule.get("category")
         count = cat_count if cat else total_species
         if count >= rule["threshold"]:
             existing_badges.add(key)

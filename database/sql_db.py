@@ -1,5 +1,5 @@
 """
-EcoSeek — SQL Database (SQLite locally, Cloud SQL on App Engine)
+EcoSeek — SQL Database (SQLite locally, /tmp on App Engine)
 Manages the leaderboard table and user score records.
 """
 
@@ -7,77 +7,69 @@ import sqlite3
 import os
 from contextlib import contextmanager
 
-DB_PATH = os.environ.get("SQL_DB_PATH", "/tmp/ecoseek.db" if os.getenv("GAE_ENV") else "ecoseek.db")
+# On App Engine GAE_ENV is set; use /tmp (ephemeral but fine for leaderboard cache)
+# Locally, use ecoseek.db in the project root
+DB_PATH = os.environ.get(
+    "SQL_DB_PATH",
+    "/tmp/ecoseek.db" if os.environ.get("GAE_ENV") else "ecoseek.db"
+)
+
+_SCHEMA = """
+CREATE TABLE IF NOT EXISTS leaderboard (
+    user_id       TEXT PRIMARY KEY,
+    display_name  TEXT NOT NULL DEFAULT 'Explorer',
+    total_points  INTEGER NOT NULL DEFAULT 0,
+    species_count INTEGER NOT NULL DEFAULT 0,
+    streak_days   INTEGER NOT NULL DEFAULT 0,
+    last_seen     TEXT,
+    created_at    TEXT DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS sighting_log (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id     TEXT NOT NULL,
+    species     TEXT NOT NULL,
+    category    TEXT,
+    points      INTEGER,
+    is_new      INTEGER DEFAULT 0,
+    logged_at   TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (user_id) REFERENCES leaderboard(user_id)
+);
+"""
+
 
 def init_db():
     """Create tables if they don't exist. Called on app startup."""
     with get_db_connection() as conn:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS leaderboard (
-                user_id       TEXT PRIMARY KEY,
-                display_name  TEXT NOT NULL DEFAULT 'Explorer',
-                total_points  INTEGER NOT NULL DEFAULT 0,
-                species_count INTEGER NOT NULL DEFAULT 0,
-                streak_days   INTEGER NOT NULL DEFAULT 0,
-                last_seen     TEXT,
-                created_at    TEXT DEFAULT (datetime('now'))
-            )
-        """)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS sighting_log (
-                id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id     TEXT NOT NULL,
-                species     TEXT NOT NULL,
-                category    TEXT,
-                points      INTEGER,
-                is_new      INTEGER DEFAULT 0,
-                logged_at   TEXT DEFAULT (datetime('now')),
-                FOREIGN KEY (user_id) REFERENCES leaderboard(user_id)
-            )
-        """)
+        conn.executescript(_SCHEMA)
         conn.commit()
+
 
 @contextmanager
 def get_db_connection():
     """Context manager — always closes the connection cleanly."""
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
-    # Ensure tables exist (important on App Engine where /tmp is wiped on restart)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS leaderboard (
-            user_id       TEXT PRIMARY KEY,
-            display_name  TEXT NOT NULL DEFAULT 'Explorer',
-            total_points  INTEGER NOT NULL DEFAULT 0,
-            species_count INTEGER NOT NULL DEFAULT 0,
-            streak_days   INTEGER NOT NULL DEFAULT 0,
-            last_seen     TEXT,
-            created_at    TEXT DEFAULT (datetime('now'))
-        )
-    """)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS sighting_log (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id     TEXT NOT NULL,
-            species     TEXT NOT NULL,
-            category    TEXT,
-            points      INTEGER,
-            is_new      INTEGER DEFAULT 0,
-            logged_at   TEXT DEFAULT (datetime('now')),
-            FOREIGN KEY (user_id) REFERENCES leaderboard(user_id)
-        )
-    """)
+    # Always ensure schema exists (important: App Engine /tmp is wiped on restart)
+    conn.executescript(_SCHEMA)
     conn.commit()
     try:
         yield conn
     finally:
         conn.close()
 
+
 def upsert_user(user_id: str, display_name: str):
-    """Add user to leaderboard table if not already there."""
+    """
+    Add user to leaderboard if not already there.
+    Also updates display_name if it has changed.
+    """
     with get_db_connection() as conn:
         conn.execute("""
-            INSERT OR IGNORE INTO leaderboard (user_id, display_name)
+            INSERT INTO leaderboard (user_id, display_name)
             VALUES (?, ?)
+            ON CONFLICT(user_id) DO UPDATE SET
+                display_name = excluded.display_name
         """, (user_id, display_name))
         conn.commit()
 
@@ -114,10 +106,10 @@ def get_user_rank(user_id: str) -> int:
             SELECT COUNT(*) + 1 AS rank
             FROM leaderboard
             WHERE total_points > (
-                SELECT total_points FROM leaderboard WHERE user_id = ?
+                SELECT COALESCE(total_points, 0) FROM leaderboard WHERE user_id = ?
             )
         """, (user_id,)).fetchone()
-    return result["rank"] if result else 0
+    return result["rank"] if result else 1
 
 
 def log_sighting(user_id: str, species: str, category: str, points: int, is_new: bool):
