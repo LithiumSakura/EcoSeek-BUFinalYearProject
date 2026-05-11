@@ -4,11 +4,17 @@
 {% block content %}
 <div class="profile-page">
 
-  <!-- Header -->
+  <!-- Header / Avatar -->
   <div class="profile-header">
-    <div class="profile-avatar" id="profile-avatar">🌱</div>
-    <div class="profile-name"   id="profile-name">Explorer</div>
-    <div class="profile-level"  id="profile-level">Level 1 • Seedling</div>
+    <div class="profile-avatar-wrap">
+      <div class="profile-avatar" id="profile-avatar">🌱</div>
+      <!-- Hidden file input -->
+      <input type="file" id="photo-input" accept="image/*" style="display:none" onchange="handlePhotoUpload(event)"/>
+      <button class="avatar-edit-btn" onclick="document.getElementById('photo-input').click()" title="Change photo">✏️</button>
+    </div>
+    <div id="photo-status" class="form-hint" style="text-align:center;margin-top:4px;min-height:18px;"></div>
+    <div class="profile-name"  id="profile-name">Explorer</div>
+    <div class="profile-level" id="profile-level">Level 1 • Seedling</div>
   </div>
 
   <!-- Stats row -->
@@ -28,6 +34,20 @@
     <div class="pstat">
       <div class="pstat-num" id="stat-rank">–</div>
       <div class="pstat-label">Rank</div>
+    </div>
+  </div>
+
+  <!-- XP Progress bar -->
+  <div class="card">
+    <h2 class="card-title">⭐ XP Progress</h2>
+    <div class="prog-row">
+      <div class="prog-label">
+        <span id="level-label">Seedling</span>
+        <span id="xp-progress-text">0 / 100 XP</span>
+      </div>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar-fill" id="xp-bar" style="width:0%"></div>
+      </div>
     </div>
   </div>
 
@@ -77,24 +97,37 @@
   const ALL_BADGES = [
     { key:"first_find",  label:"First Find",      icon:"🌱" },
     { key:"bird_5",      label:"Bird Watcher",     icon:"🐦" },
-    { key:"insect_5",    label:"Bug Hunter",        icon:"🦋" },
-    { key:"plant_10",    label:"Botanist",          icon:"🌸" },
-    { key:"animal_5",    label:"Animal Spotter",    icon:"🦊" },
-    { key:"species_10",  label:"Explorer 10",       icon:"🗺️" },
-    { key:"species_25",  label:"Explorer 25",       icon:"🌍" },
-    { key:"species_50",  label:"Champion",          icon:"🏆" },
+    { key:"insect_5",    label:"Bug Hunter",       icon:"🦋" },
+    { key:"plant_10",    label:"Botanist",         icon:"🌸" },
+    { key:"animal_5",    label:"Animal Spotter",   icon:"🦊" },
+    { key:"species_10",  label:"Explorer 10",      icon:"🗺️" },
+    { key:"species_25",  label:"Explorer 25",      icon:"🌍" },
+    { key:"species_50",  label:"Champion",         icon:"🏆" },
   ];
 
-  // Load user profile
+  // ── Load user profile ─────────────────────────────────────────
   fetch("/api/profile/" + userId)
     .then(r => r.json())
     .then(d => {
+      // Photo
+      const avatarEl = document.getElementById("profile-avatar");
+      if (d.photo_url) {
+        avatarEl.innerHTML = `<img src="${d.photo_url}" alt="Avatar"
+          style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+      }
+
       document.getElementById("profile-name").textContent  = d.display_name || "Explorer";
       document.getElementById("profile-level").textContent = `Level ${d.level_num} • ${d.level_name}`;
       document.getElementById("stat-species").textContent  = d.species_count || 0;
       document.getElementById("stat-xp").textContent       = d.total_points  || 0;
       document.getElementById("stat-streak").textContent   = d.streak_days   || 0;
-      document.getElementById("stat-rank").textContent     = "#" + (d.rank  || "–");
+      document.getElementById("stat-rank").textContent     = "#" + (d.rank || "–");
+
+      // XP progress bar
+      document.getElementById("level-label").textContent     = d.level_name;
+      document.getElementById("xp-progress-text").textContent =
+        `${d.xp_into_level} / ${d.xp_needed} XP`;
+      document.getElementById("xp-bar").style.width = d.progress_pct + "%";
 
       // Category bars
       const cats = { insect: 30, plant: 50, bird: 40, animal: 20 };
@@ -114,7 +147,7 @@
         </div>`).join("");
     });
 
-  // Load sightings
+  // ── Load sightings ────────────────────────────────────────────
   fetch("/api/sightings/" + userId)
     .then(r => r.json())
     .then(data => {
@@ -123,7 +156,7 @@
         el.innerHTML = '<p class="empty-msg">No sightings yet — go explore! 📷</p>';
         return;
       }
-      const emojiMap = {bird:"🐦", insect:"🪲", plant:"🌸", animal:"🐾"};
+      const emojiMap = { bird:"🐦", insect:"🪲", plant:"🌸", animal:"🐾" };
       el.innerHTML = data.map(s => `
         <div class="sighting-row">
           <div class="sighting-emoji">${emojiMap[s.category] || "🌿"}</div>
@@ -134,5 +167,51 @@
           <div class="sighting-pts ${s.is_new ? 'pts-new' : ''}">+${s.points} XP</div>
         </div>`).join("");
     });
+
+  // ── Profile photo upload ──────────────────────────────────────
+  function handlePhotoUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const statusEl = document.getElementById("photo-status");
+    statusEl.textContent = "Uploading…";
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      // Resize to max 200×200 thumbnail using a canvas
+      const img    = new Image();
+      img.onload   = function() {
+        const MAX  = 200;
+        const scale = Math.min(MAX / img.width, MAX / img.height, 1);
+        const canvas = document.createElement("canvas");
+        canvas.width  = Math.round(img.width  * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+        const b64 = canvas.toDataURL("image/jpeg", 0.75).split(",")[1];
+
+        fetch("/api/profile/photo", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ photo_b64: b64 })
+        })
+        .then(r => r.json())
+        .then(data => {
+          if (data.message) {
+            // Update avatar preview immediately
+            document.getElementById("profile-avatar").innerHTML =
+              `<img src="data:image/jpeg;base64,${b64}" alt="Avatar"
+               style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+            statusEl.textContent = "✅ Photo saved!";
+            setTimeout(() => statusEl.textContent = "", 2000);
+          } else {
+            statusEl.textContent = "❌ " + (data.error || "Upload failed");
+          }
+        })
+        .catch(() => { statusEl.textContent = "❌ Upload failed"; });
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
 </script>
 {% endblock %}

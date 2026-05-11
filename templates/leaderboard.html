@@ -11,12 +11,12 @@
 
   <!-- Podium (top 3) -->
   <div class="podium" id="podium">
-    <!-- filled by JS -->
+    <p class="empty-msg" style="text-align:center">Loading…</p>
   </div>
 
   <!-- Full list -->
   <div class="lb-list" id="lb-list">
-    <p class="empty-msg">Loading leaderboard...</p>
+    <p class="empty-msg">Loading leaderboard…</p>
   </div>
 
 </div>
@@ -29,22 +29,37 @@
   fetch("/api/leaderboard")
     .then(r => r.json())
     .then(users => {
+      if (!users.length) {
+        document.getElementById("podium").innerHTML  = "";
+        document.getElementById("lb-list").innerHTML = '<p class="empty-msg">No explorers yet — go make some sightings! 🌿</p>';
+        return;
+      }
       renderPodium(users.slice(0, 3));
       renderList(users);
+    })
+    .catch(() => {
+      document.getElementById("lb-list").innerHTML = '<p class="empty-msg">Could not load leaderboard.</p>';
     });
 
+  function getName(u) {
+    // display_name is the username stored at registration; fall back gracefully
+    return u.display_name && u.display_name !== "Explorer" ? u.display_name : "Explorer";
+  }
+
   function renderPodium(top3) {
-    const order   = [1, 0, 2];  // 2nd, 1st, 3rd display order
+    // Display order: 2nd | 1st | 3rd
+    const order   = [1, 0, 2];
     const heights = ["60px", "80px", "44px"];
     const colours = ["#7aab8a", "#2e7d4f", "#a8c5b0"];
     const podium  = document.getElementById("podium");
     podium.innerHTML = order.map((idx, pos) => {
       const u = top3[idx];
       if (!u) return "";
+      const isMe = u.user_id === currentUser;
       return `
         <div class="podium-slot">
           <div class="podium-avatar">${avatarEmoji(idx)}</div>
-          <div class="podium-name">${u.display_name}</div>
+          <div class="podium-name">${getName(u)}${isMe ? ' <span class="you-tag">You!</span>' : ''}</div>
           <div class="podium-pts">${u.total_points} XP</div>
           <div class="podium-block" style="height:${heights[pos]};background:${colours[pos]}">${idx + 1}</div>
         </div>`;
@@ -60,7 +75,7 @@
           <div class="lb-rank">#${i + 1}</div>
           <div class="lb-avatar" style="background:${rankColour(i)}">${avatarEmoji(i)}</div>
           <div class="lb-info">
-            <div class="lb-name">${u.display_name}${isMe ? ' <span class="you-tag">You!</span>' : ''}</div>
+            <div class="lb-name">${getName(u)}${isMe ? ' <span class="you-tag">You!</span>' : ''}</div>
             <div class="lb-sub">${u.species_count} species found</div>
           </div>
           <div class="lb-score">${u.total_points} XP</div>
