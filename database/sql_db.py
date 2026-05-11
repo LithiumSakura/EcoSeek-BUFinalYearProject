@@ -7,8 +7,7 @@ import sqlite3
 import os
 from contextlib import contextmanager
 
-DB_PATH = os.environ.get("SQL_DB_PATH", "ecoseek.db")
-
+DB_PATH = os.environ.get("SQL_DB_PATH", "/tmp/ecoseek.db" if os.getenv("GAE_ENV") else "ecoseek.db")
 
 def init_db():
     """Create tables if they don't exist. Called on app startup."""
@@ -38,17 +37,40 @@ def init_db():
         """)
         conn.commit()
 
-
 @contextmanager
 def get_db_connection():
     """Context manager — always closes the connection cleanly."""
     conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row   # lets you access columns by name
+    conn.row_factory = sqlite3.Row
+    # Ensure tables exist (important on App Engine where /tmp is wiped on restart)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS leaderboard (
+            user_id       TEXT PRIMARY KEY,
+            display_name  TEXT NOT NULL DEFAULT 'Explorer',
+            total_points  INTEGER NOT NULL DEFAULT 0,
+            species_count INTEGER NOT NULL DEFAULT 0,
+            streak_days   INTEGER NOT NULL DEFAULT 0,
+            last_seen     TEXT,
+            created_at    TEXT DEFAULT (datetime('now'))
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS sighting_log (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id     TEXT NOT NULL,
+            species     TEXT NOT NULL,
+            category    TEXT,
+            points      INTEGER,
+            is_new      INTEGER DEFAULT 0,
+            logged_at   TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY (user_id) REFERENCES leaderboard(user_id)
+        )
+    """)
+    conn.commit()
     try:
         yield conn
     finally:
         conn.close()
-
 
 def upsert_user(user_id: str, display_name: str):
     """Add user to leaderboard table if not already there."""

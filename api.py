@@ -125,7 +125,25 @@ def save_sighting():
         .get()
     )
     is_new = len(existing) == 0
-    points = calculate_points(species, is_new)
+
+    # Get current streak from Firestore first
+    user_ref = db.collection("users").document(user_id)
+    user_data = user_ref.get().to_dict() or {}
+    today = datetime.now(timezone.utc).date().isoformat()
+    last_active = user_data.get("last_active", "")
+    current_streak = user_data.get("day_streak", 0)
+
+    from datetime import timedelta
+    yesterday = (datetime.now(timezone.utc).date() - timedelta(days=1)).isoformat()
+    if last_active == today:
+        new_streak = current_streak
+    elif last_active == yesterday:
+        new_streak = current_streak + 1
+    else:
+        new_streak = 1
+
+    # NOW calculate points with correct streak
+    points = calculate_points(species, is_new, streak_days=new_streak)
 
     # --- Firestore: store rich sighting document (NoSQL) ---
     sighting_ref = db.collection("sightings").document()
@@ -147,14 +165,37 @@ def save_sighting():
             INSERT INTO leaderboard (user_id, total_points, species_count)
             VALUES (?, ?, ?)
             ON CONFLICT(user_id) DO UPDATE SET
-              total_points = total_points + ?,
-              species_count = species_count + ?
+                total_points = total_points + ?,
+                species_count = species_count + ?
         """, (user_id, points, 1 if is_new else 0,
-              points, 1 if is_new else 0))
+                points, 1 if is_new else 0))
         conn.commit()
 
-    # --- Firestore: check and award badges ---
-    awarded = _check_badges(user_id, category, is_new)
+    # --- Firestore: update user profile stats ---
+    user_ref = db.collection("users").document(user_id)
+    today = datetime.now(timezone.utc).date().isoformat()
+
+    user_data = user_ref.get().to_dict() or {}
+    last_active = user_data.get("last_active", "")
+    current_streak = user_data.get("day_streak", 0)
+
+    # Streak logic
+    if last_active == today:
+        new_streak = current_streak  # already logged today
+    else:
+        yesterday = (datetime.now(timezone.utc).date() - __import__('datetime').timedelta(days=1)).isoformat()
+        new_streak = current_streak + 1 if last_active == yesterday else 1
+
+    update_data = {
+        "total_xp": firestore.Increment(points),
+        "day_streak": new_streak,
+        "last_active": today,
+    }
+    if is_new:
+        update_data["species_count"] = firestore.Increment(1)
+        update_data[f"{category}_count"] = firestore.Increment(1)
+
+    user_ref.set(update_data, merge=True)
 
     return jsonify({
         "points": points,

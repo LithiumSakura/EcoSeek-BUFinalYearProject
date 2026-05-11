@@ -1,9 +1,9 @@
 """
 EcoSeek — Scoring System
 Awards XP points per sighting.
-  - New species (first time ever spotted): 50 XP
-  - Repeat sighting (seen before):          5 XP
-  - Streak bonus (7-day streak):           +10 XP on top of base
+    - New species (first time ever spotted): 50 XP
+    - Repeat sighting (seen before):          5 XP
+    - Streak bonus (7-day streak):           +10 XP on top of base
 """
 
 NEW_SPECIES_POINTS  = 50
