@@ -1,4 +1,4 @@
-# Secrets — NEVER commit these
+# ── SECRETS — NEVER commit these ──────────────────
 .env
 firebase-key.json
 *.json.bak
@@ -7,33 +7,27 @@ firebase-key.json
 __pycache__/
 *.pyc
 *.pyo
-*.pyd
 *.egg-info/
 dist/
 build/
-.eggs/
 
 # Virtual environments
 venv/
 .venv/
 env/
 
-# Database (local only; App Engine uses /tmp)
+# Local database
 ecoseek.db
 *.db
 
-# VS Code
+# VS Code / macOS
 .vscode/
-*.code-workspace
-
-# macOS
 .DS_Store
-.AppleDouble
 
-# Testing / coverage
+# Testing
 .pytest_cache/
 .coverage
 htmlcov/
 
-# App Engine generated
+# App Engine
 .gcloudignore
