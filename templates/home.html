@@ -3,6 +3,13 @@
 
 {% block content %}
 <div class="dashboard">
+  <!-- Flask data passed to JS via data attributes — no Jinja inside script tags -->
+  <div id="flask-data"
+    data-user-id="{{ session['user_id'] }}"
+    data-total-xp="{{ user.get('total_points', 0) }}"
+    data-streak="{{ user.get('streak_days', 0) }}"
+    style="display:none">
+  </div>
 
   <!-- Welcome banner -->
   <section class="dash-banner">
@@ -69,8 +76,14 @@
 
 {% block extra_scripts %}
 <script>
+  // Read Flask values from data attributes — linter-safe, no Jinja in JS
+  const _data      = document.getElementById("flask-data").dataset;
+  const USER_ID    = _data.userId;
+  const TOTAL_XP   = parseInt(_data.totalXp,  10) || 0;
+  const STREAK_DAYS = parseInt(_data.streak,  10) || 0;
+
   // Load recent sightings
-  fetch("/api/sightings/{{ session['user_id'] }}")
+  fetch("/api/sightings/" + USER_ID)
     .then(r => r.json())
     .then(data => {
       const container = document.getElementById("recent-sightings");
@@ -95,7 +108,7 @@
   }
 
   // Level bar
-  const totalXp = {{ user.get('total_points', 0) }};
+  const totalXp = TOTAL_XP;
   fetch("/api/level?xp=" + totalXp)
     .then(r => r.json())
     .then(d => {
@@ -107,7 +120,7 @@
     });
 
   // Streak display
-  const streak = {{ user.get('streak_days', 0) }};
+  const streak = STREAK_DAYS;
   const days   = ["M","T","W","T","F","S","S"];
   const today  = new Date().getDay(); // 0=Sun
   const reordered = [...days.slice(1), days[0]]; // Mon-Sun
