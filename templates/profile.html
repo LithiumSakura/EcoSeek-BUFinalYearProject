@@ -8,12 +8,13 @@
   <div class="profile-header">
     <div class="profile-avatar-wrap">
       <div class="profile-avatar" id="profile-avatar">🌱</div>
+      <!-- Hidden file input -->
       <input type="file" id="photo-input" accept="image/*" style="display:none" onchange="handlePhotoUpload(event)"/>
       <button class="avatar-edit-btn" onclick="document.getElementById('photo-input').click()" title="Change photo">✏️</button>
     </div>
-    <div id="photo-status" class="form-hint" style="text-align:center;margin-top:4px;min-height:18px;"></div>
-    <div class="profile-name"  id="profile-name">Explorer</div>
-    <div class="profile-level" id="profile-level">Level 1 • Seedling</div>
+    <div id="photo-status" style="font-size:.8rem;color:rgba(255,255,255,.8);margin-top:4px;min-height:18px;"></div>
+    <h2 class="profile-name"  id="profile-name">Explorer</h2>
+    <div class="profile-level" id="profile-level">Seedling · Level 1</div>
   </div>
 
   <!-- Stats row -->
