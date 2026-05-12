@@ -5,11 +5,31 @@ Entry point for Google App Engine.
 
 import os
 
-# For local .env loading
-if not os.environ.get("GAE_ENV"):
-    from dotenv import load_dotenv
-    load_dotenv()
+# ── Load secrets ───────────────────────────────────────────────────────────────
+def _load_secrets():
+    if os.environ.get("GAE_ENV"):
+        # Running on App Engine — fetch from Secret Manager
+        try:
+            from google.cloud import secretmanager
+            project_id = os.environ.get("GOOGLE_CLOUD_PROJECT", "ecoseek-buproject-f015d")
+            client = secretmanager.SecretManagerServiceClient()
 
+            def _get(name):
+                resource = f"projects/{project_id}/secrets/{name}/versions/latest"
+                return client.access_secret_version(request={"name": resource}).payload.data.decode("utf-8")
+
+            os.environ.setdefault("SECRET_KEY",      _get("ECOSEEK_SECRET_KEY"))
+            os.environ.setdefault("VISION_API_KEY",  _get("ECOSEEK_VISION_API_KEY"))
+        except Exception as e:
+            print(f"WARNING: Could not load secrets from Secret Manager: {e}")
+    else:
+        # Running locally — load from .env
+        from dotenv import load_dotenv
+        load_dotenv()
+
+_load_secrets()
+
+# ── Firebase init ──────────────────────────────────────────────────────────────
 import firebase_admin
 from firebase_admin import credentials, firestore
 
@@ -34,12 +54,11 @@ from database.sql_db import init_db, get_user_rank
 from scoring import get_level
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "pineapple-cherry-kuromi-scrunchie-cards")
+app.secret_key = os.environ.get("SECRET_KEY", "local-dev-only-not-for-production")
 
 app.register_blueprint(auth_bp, url_prefix="/auth")
 app.register_blueprint(api_bp,  url_prefix="/api")
 
-# Initialise DB on startup (creates tables if they don't exist)
 with app.app_context():
     init_db()
 
@@ -52,11 +71,13 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated
 
+
 @app.route("/")
 def index():
     if "user_id" in session:
         return redirect(url_for("home"))
     return render_template("index.html")
+
 
 @app.route("/home")
 @login_required
@@ -67,31 +88,37 @@ def home():
     user_data.setdefault("display_name", session.get("display_name", "Explorer"))
     return render_template("home.html", user=user_data)
 
+
 @app.route("/camera")
 @login_required
 def camera():
     return render_template("camera.html")
+
 
 @app.route("/leaderboard")
 @login_required
 def leaderboard():
     return render_template("leaderboard.html")
 
+
 @app.route("/profile")
 @login_required
 def profile():
     return render_template("profile.html", user_id=session["user_id"])
+
 
 @app.route("/explore")
 @login_required
 def explore():
     return render_template("explore.html")
 
+
 @app.route("/api/level")
 @login_required
 def api_level():
     xp = request.args.get("xp", 0, type=int)
     return jsonify(get_level(xp))
+
 
 @app.route("/api/profile/<user_id>")
 @login_required
@@ -118,9 +145,11 @@ def api_profile(user_id):
         **level_info
     })
 
+
 @app.route("/_ah/health")
 def health():
     return "OK", 200
+
 
 application = app
 
