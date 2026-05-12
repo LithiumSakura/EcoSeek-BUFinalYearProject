@@ -23,7 +23,7 @@ def _load_secrets():
 
             os.environ.setdefault("SECRET_KEY",      _get("ECOSEEK_SECRET_KEY"))
             os.environ.setdefault("VISION_API_KEY",  _get("ECOSEEK_VISION_API_KEY"))
-            os.environ.setdefault("ANTHROPIC_API_KEY", _get("ECOSEEK_ANTHROPIC_API_KEY"))
+            os.environ.setdefault("PLANTNET_API_KEY", _get("ECOSEEK_PLANTNET_API_KEY"))
         except Exception as e:
             print(f"WARNING: Could not load secrets from Secret Manager: {e}")
     else:
