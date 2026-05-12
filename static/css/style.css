@@ -712,3 +712,48 @@ p  { line-height: 1.6; }
   line-height: 1;
 }
 .avatar-edit-btn:hover { background: var(--green-light); }
+
+/* ── Fun Facts (camera result panel) ────────────── */
+.fun-facts-wrap {
+  background: var(--green-light);
+  border: 2px solid #c3e6cb;
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+.fun-facts-title {
+  font-family: 'Fredoka One', cursive;
+  font-size: 1rem;
+  color: var(--green-dark);
+  margin-bottom: 10px;
+}
+.fun-facts-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.88rem;
+  color: var(--gray-mid);
+  padding: 4px 0;
+}
+.fun-facts-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+}
+.fun-facts-list li {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--gray-text);
+}
+.fun-facts-list li::before {
+  content: "✨";
+  flex-shrink: 0;
+  font-size: 0.85rem;
+  margin-top: 2px;
+}

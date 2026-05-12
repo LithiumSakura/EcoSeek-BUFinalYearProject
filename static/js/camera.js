@@ -1,11 +1,11 @@
 /**
  * EcoSeek — camera.js
  * Handles webcam/phone camera access, photo capture,
- * Vision API identification, and sighting save.
+ * Vision API identification, fun facts, and sighting save.
  */
 
-let currentImageB64 = null;
-let identifiedSpecies = null;
+let currentImageB64    = null;
+let identifiedSpecies  = null;
 let identifiedCategory = null;
 let userLat = null;
 let userLng = null;
@@ -82,6 +82,10 @@ async function identifyImage(b64) {
     identifiedSpecies  = data.species;
     identifiedCategory = data.category;
     showResult(data);
+
+    // Fetch fun facts in the background after result is shown
+    loadFunFacts(data.species, data.category);
+
   } catch (err) {
     alert("Oops! Could not identify that. Try again or try a clearer photo 📷");
     console.error(err);
@@ -104,9 +108,37 @@ function showResult(data) {
     ...(data.labels || []).slice(0, 3).map(l => `<span class="result-tag">${l}</span>`)
   ].join("");
 
+  // Show fun facts section in loading state
+  document.getElementById("fun-facts-wrap").style.display = "block";
+  document.getElementById("fun-facts-loading").classList.remove("hidden");
+  document.getElementById("fun-facts-list").innerHTML = "";
+
   // Hide XP until saved
   document.getElementById("result-xp").style.display = "none";
   document.getElementById("result-panel").classList.remove("hidden");
+}
+
+// ── Fetch and display fun facts ───────────────────
+async function loadFunFacts(species, category) {
+  try {
+    const resp = await fetch("/api/funfacts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ species, category })
+    });
+    const data = await resp.json();
+
+    document.getElementById("fun-facts-loading").classList.add("hidden");
+
+    if (data.facts && data.facts.length) {
+      document.getElementById("fun-facts-list").innerHTML =
+        data.facts.map(f => `<li>${f}</li>`).join("");
+    }
+  } catch (err) {
+    // Silently hide the loading spinner if facts fail
+    document.getElementById("fun-facts-loading").classList.add("hidden");
+    console.warn("Fun facts error:", err);
+  }
 }
 
 // ── Save sighting to the server ───────────────────
@@ -122,9 +154,9 @@ async function saveSighting() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        species:    identifiedSpecies,
-        category:   identifiedCategory,
-        image_b64:  currentImageB64,
+        species:   identifiedSpecies,
+        category:  identifiedCategory,
+        image_b64: currentImageB64,
         lat: userLat,
         lng: userLng
       })
@@ -165,6 +197,8 @@ function resetCamera() {
   identifiedCategory = null;
   document.getElementById("save-btn").textContent = "Save to My Collection! 🌟";
   document.getElementById("save-btn").disabled    = false;
+  document.getElementById("fun-facts-wrap").style.display = "none";
+  document.getElementById("fun-facts-list").innerHTML = "";
 }
 
 // ── UI helpers ────────────────────────────────────
