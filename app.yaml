@@ -6,8 +6,6 @@ entrypoint: gunicorn -b :$PORT main:application
 
 env_variables:
   GOOGLE_CLOUD_PROJECT: 'ecoseek-buproject-f015d'
-  SECRET_KEY: 'pineapple-cherry-kuromi-scrunchie-cards'
-  VISION_API_KEY: 'AIzaSyCE9Q1XOrLnC8Kl_l1I1w0Bac8dllVsO4s'
 
 handlers:
   - url: /static
