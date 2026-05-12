@@ -23,7 +23,7 @@ def _load_secrets():
 
             os.environ.setdefault("SECRET_KEY",      _get("ECOSEEK_SECRET_KEY"))
             os.environ.setdefault("VISION_API_KEY",  _get("ECOSEEK_VISION_API_KEY"))
-            os.environ.setdefault("PLANTNET_API_KEY", _get("ECOSEEK_PLANTNET_API_KEY"))
+            os.environ.setdefault("ANTHROPIC_API_KEY", _get("ECOSEEK_ANTHROPIC_API_KEY"))
         except Exception as e:
             print(f"WARNING: Could not load secrets from Secret Manager: {e}")
     else:
@@ -86,10 +86,18 @@ def index():
 @app.route("/home")
 @login_required
 def home():
-    user_id = session["user_id"]
+    user_id  = session["user_id"]
     user_doc = db.collection("users").document(user_id).get()
     user_data = user_doc.to_dict() if user_doc.exists else {}
     user_data.setdefault("display_name", session.get("display_name", "Explorer"))
+
+    # Normalise field names — Firestore stores 'day_streak' but
+    # the template reads 'streak_days'. Support both so neither breaks.
+    if "streak_days" not in user_data:
+        user_data["streak_days"] = user_data.get("day_streak", 0)
+    if "total_points" not in user_data:
+        user_data["total_points"] = user_data.get("total_xp", 0)
+
     return render_template("home.html", user=user_data)
 
 

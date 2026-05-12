@@ -411,7 +411,9 @@ def save_sighting():
     # Update Firestore user profile
     update_data = {
         "total_xp":    firestore.Increment(points),
+        "total_points": firestore.Increment(points),  # keep both names in sync
         "day_streak":  new_streak,
+        "streak_days": new_streak,  # keep both names in sync
         "last_active": today,
     }
     if is_new:
