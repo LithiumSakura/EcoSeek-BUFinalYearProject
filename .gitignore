@@ -1,24 +1,33 @@
-# secrets — NEVER commit these
-firebase-key.json
+# ── SECRETS — NEVER commit these ──────────────────
 .env
-*.json
+firebase-key.json
+*.json.bak
 
 # Python
 __pycache__/
-*.py[cod]
+*.pyc
 *.pyo
-venv/
-.venv/
 *.egg-info/
 dist/
 build/
 
-# VS Code
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Local database
+ecoseek.db
+*.db
+
+# VS Code / macOS
 .vscode/
+.DS_Store
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
 
 # App Engine
 .gcloudignore
-
-# OS
-.DS_Store
-Thumbs.db
