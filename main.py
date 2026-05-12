@@ -6,6 +6,9 @@ Entry point for Google App Engine.
 import os
 
 # ── Load secrets ───────────────────────────────────────────────────────────────
+# Locally: read from .env file (never committed)
+# On App Engine: fetch from Google Cloud Secret Manager
+# ──────────────────────────────────────────────────────────────────────────────
 def _load_secrets():
     if os.environ.get("GAE_ENV"):
         # Running on App Engine — fetch from Secret Manager
@@ -20,6 +23,7 @@ def _load_secrets():
 
             os.environ.setdefault("SECRET_KEY",      _get("ECOSEEK_SECRET_KEY"))
             os.environ.setdefault("VISION_API_KEY",  _get("ECOSEEK_VISION_API_KEY"))
+            os.environ.setdefault("ANTHROPIC_API_KEY", _get("ECOSEEK_ANTHROPIC_API_KEY"))
         except Exception as e:
             print(f"WARNING: Could not load secrets from Secret Manager: {e}")
     else:
@@ -105,12 +109,6 @@ def leaderboard():
 @login_required
 def profile():
     return render_template("profile.html", user_id=session["user_id"])
-
-
-@app.route("/explore")
-@login_required
-def explore():
-    return render_template("explore.html")
 
 
 @app.route("/api/level")
