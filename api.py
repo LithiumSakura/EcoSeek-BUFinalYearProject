@@ -1,6 +1,6 @@
 """
 EcoSeek — REST API Blueprint
-All /api/ endpoints. Returns JSON.
+All /api/* endpoints. Returns JSON.
 """
 
 import os
@@ -86,6 +86,7 @@ def identify():
     except Exception as e:
         print(f"IDENTIFY ERROR: {e}")
         return jsonify({"error": str(e)}), 500
+
 
 # ── /api/sighting  ───────────────────────────────────────────────
 @api_bp.route("/sighting", methods=["POST"])
@@ -190,6 +191,7 @@ def save_sighting():
         "badges_awarded": awarded
     }), 201
 
+
 # ── /api/leaderboard ─────────────────────────────────────────────
 @api_bp.route("/leaderboard")
 def leaderboard():
@@ -202,6 +204,7 @@ def leaderboard():
             LIMIT 20
         """).fetchall()
     return jsonify([dict(r) for r in rows])
+
 
 # ── /api/sightings/<user_id> ─────────────────────────────────────
 @api_bp.route("/sightings/<user_id>")
@@ -219,6 +222,7 @@ def get_sightings(user_id):
         .get()
     )
     return jsonify([{"id": d.id, **d.to_dict()} for d in docs])
+
 
 # ── /api/nearby ──────────────────────────────────────────────────
 @api_bp.route("/nearby")
@@ -244,6 +248,7 @@ def nearby_sightings():
                 "timestamp": d_dict.get("timestamp", ""),
             })
     return jsonify(results)
+
 
 # ── /api/profile/photo ───────────────────────────────────────────
 @api_bp.route("/profile/photo", methods=["POST"])
@@ -322,3 +327,88 @@ def _check_badges(user_id: str, category: str, is_new: bool) -> list:
     if awarded:
         user_ref.set({"badges": list(existing_badges)}, merge=True)
     return awarded
+
+
+# ── /api/funfacts ─────────────────────────────────────────────────
+@api_bp.route("/funfacts", methods=["POST"])
+@api_login_required
+def fun_facts():
+    """
+    Uses the Anthropic API to generate 3 child-friendly fun facts
+    about the identified species.
+    """
+    data    = request.get_json()
+    species  = data.get("species", "this plant or animal")
+    category = data.get("category", "nature")
+
+    prompt = (
+        f"You are a friendly nature guide for children aged 8-14. "
+        f"A child has just spotted a {species} (category: {category}). "
+        f"Give exactly 3 short, fun, surprising facts about {species}. "
+        f"Each fact should be one sentence, easy to understand, and exciting. "
+        f"Reply ONLY as a JSON array of 3 strings, nothing else. "
+        f'Example format: ["Fact one.", "Fact two.", "Fact three."]'
+    )
+
+    try:
+        resp = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "Content-Type": "application/json",
+                "x-api-key":    os.environ.get("ANTHROPIC_API_KEY", ""),
+                "anthropic-version": "2023-06-01"
+            },
+            json={
+                "model":      "claude-haiku-4-5-20251001",
+                "max_tokens": 300,
+                "messages":   [{"role": "user", "content": prompt}]
+            },
+            timeout=15
+        )
+
+        if not resp.ok:
+            return jsonify({"facts": _fallback_facts(species, category)}), 200
+
+        raw   = resp.json()["content"][0]["text"].strip()
+        # Strip any accidental markdown fences
+        raw   = raw.replace("```json", "").replace("```", "").strip()
+        import json as _json
+        facts = _json.loads(raw)
+        if not isinstance(facts, list):
+            raise ValueError("Not a list")
+        return jsonify({"facts": facts[:3]}), 200
+
+    except Exception as e:
+        print(f"FUN FACTS ERROR: {e}")
+        return jsonify({"facts": _fallback_facts(species, category)}), 200
+
+
+def _fallback_facts(species: str, category: str) -> list:
+    """Static fallback facts by category if the API call fails."""
+    fallbacks = {
+        "bird":   [
+            "Birds are the only living animals that have feathers!",
+            "Some birds can remember thousands of hiding spots where they stored food.",
+            "The fastest bird in the world, the peregrine falcon, can dive at over 240 mph!"
+        ],
+        "insect": [
+            "Insects have 6 legs and 3 body parts — head, thorax, and abdomen.",
+            "There are more insects on Earth than any other type of animal!",
+            "Butterflies taste with their feet — they have taste sensors on their legs."
+        ],
+        "plant":  [
+            "Plants make their own food using sunlight, water, and air — it's called photosynthesis!",
+            "The oldest living tree in the world is over 5,000 years old.",
+            "Some plants can live for hundreds of years without any soil, just clinging to rocks!"
+        ],
+        "animal": [
+            "Mammals are warm-blooded and most give birth to live young.",
+            "Some animals, like the axolotl, can regrow lost limbs completely!",
+            "The blue whale is the largest animal ever known to have lived on Earth."
+        ],
+    }
+    return fallbacks.get(category, [
+        f"{species} is a fascinating part of our natural world!",
+        "Every species plays an important role in its ecosystem.",
+        "Spotting wildlife helps scientists track how nature is doing — great work! 🌿"
+    ])
