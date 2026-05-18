@@ -3,12 +3,9 @@
 
 {% block content %}
 <div class="profile-page">
-
-  <!-- Header / Avatar -->
   <div class="profile-header">
     <div class="profile-avatar-wrap">
       <div class="profile-avatar" id="profile-avatar">🌱</div>
-      <!-- Hidden file input -->
       <input type="file" id="photo-input" accept="image/*" style="display:none" onchange="handlePhotoUpload(event)"/>
       <button class="avatar-edit-btn" onclick="document.getElementById('photo-input').click()" title="Change photo">✏️</button>
     </div>
@@ -17,7 +14,6 @@
     <div class="profile-level" id="profile-level">Seedling · Level 1</div>
   </div>
 
-  <!-- Stats row -->
   <div class="profile-stats">
     <div class="pstat">
       <div class="pstat-num" id="stat-species">–</div>
@@ -37,7 +33,6 @@
     </div>
   </div>
 
-  <!-- XP Progress bar -->
   <div class="card">
     <h2 class="card-title">⭐ XP Progress</h2>
     <div class="prog-row">
@@ -51,7 +46,6 @@
     </div>
   </div>
 
-  <!-- Category progress bars -->
   <div class="card">
     <h2 class="card-title">Category Progress</h2>
     <div class="prog-row">
@@ -72,15 +66,12 @@
     </div>
   </div>
 
-  <!-- Badges -->
   <div class="card">
     <h2 class="card-title">🎖️ My Badges</h2>
     <div class="badges-grid" id="badges-grid">
-      <!-- filled by JS -->
     </div>
   </div>
 
-  <!-- Recent sightings -->
   <div class="card">
     <h2 class="card-title">🌿 My Collection</h2>
     <div id="profile-sightings" class="sighting-list">
@@ -105,7 +96,6 @@
     { key:"species_50",  label:"Champion",         icon:"🏆" },
   ];
 
-  // ── Load user profile ─────────────────────────────────────────
   fetch("/api/profile/" + userId)
     .then(r => r.json())
     .then(d => {
@@ -123,13 +113,11 @@
       document.getElementById("stat-streak").textContent   = d.streak_days   || 0;
       document.getElementById("stat-rank").textContent     = "#" + (d.rank || "–");
 
-      // XP progress bar
       document.getElementById("level-label").textContent     = d.level_name;
       document.getElementById("xp-progress-text").textContent =
         `${d.xp_into_level} / ${d.xp_needed} XP`;
       document.getElementById("xp-bar").style.width = d.progress_pct + "%";
 
-      // Category bars
       const cats = { insect: 30, plant: 50, bird: 40, animal: 20 };
       for (const [cat, max] of Object.entries(cats)) {
         const count = d[`${cat}_count`] || 0;
@@ -137,7 +125,6 @@
         document.getElementById(`${cat}-bar`).style.width   = Math.min(count / max * 100, 100) + "%";
       }
 
-      // Badges
       const earned = new Set(d.badges || []);
       document.getElementById("badges-grid").innerHTML = ALL_BADGES.map(b => `
         <div class="badge-item ${earned.has(b.key) ? '' : 'badge-locked'}">
@@ -147,7 +134,6 @@
         </div>`).join("");
     });
 
-  // ── Load sightings ────────────────────────────────────────────
   fetch("/api/sightings/" + userId)
     .then(r => r.json())
     .then(data => {
@@ -168,7 +154,6 @@
         </div>`).join("");
     });
 
-  // ── Profile photo upload ──────────────────────────────────────
   function handlePhotoUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -178,7 +163,6 @@
 
     const reader = new FileReader();
     reader.onload = function(e) {
-      // Resize to max 200×200 thumbnail using a canvas
       const img    = new Image();
       img.onload   = function() {
         const MAX  = 200;
@@ -200,7 +184,7 @@
             // Update avatar preview immediately
             document.getElementById("profile-avatar").innerHTML =
               `<img src="data:image/jpeg;base64,${b64}" alt="Avatar"
-               style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+                style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
             statusEl.textContent = "✅ Photo saved!";
             setTimeout(() => statusEl.textContent = "", 2000);
           } else {
