@@ -5,7 +5,8 @@ instance_class: F1
 entrypoint: gunicorn -b :$PORT main:application
 
 env_variables:
-  GOOGLE_CLOUD_PROJECT: 'ecoseek-buproject-f015d'
+  GOOGLE_CLOUD_PROJECT: 'your-gcp-project-id'
+  SECRET_KEY: 'your-secret-key'
 
 handlers:
   - url: /static
