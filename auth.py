@@ -1,8 +1,3 @@
-"""
-EcoSeek — Authentication Blueprint
-Handles login, register, logout via Firebase Auth + Google OAuth.
-"""
-
 from flask import Blueprint, render_template, request, redirect, url_for, session, jsonify
 import firebase_admin
 from firebase_admin import auth as firebase_auth
@@ -11,7 +6,7 @@ import os
 
 auth_bp = Blueprint("auth", __name__)
 
-# ── Helpers ─────────────────────────────────────────────────────
+# Helpers
 def is_safe_username(username: str) -> bool:
     """Allow letters, digits, underscores, hyphens, 3-20 chars."""
     return bool(re.match(r"^[a-zA-Z0-9_\-]{3,20}$", username))
@@ -44,7 +39,7 @@ def _upsert_firestore(user_id: str, display_name: str, email: str):
         })
 
 
-# ── Routes ───────────────────────────────────────────────────────
+# Routes
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "GET":
@@ -79,13 +74,11 @@ def register():
         return jsonify({"error": "Password must be at least 8 characters"}), 400
 
     try:
-        # Create user in Firebase Auth
         user = firebase_auth.create_user(
             email=email,
             password=password,
             display_name=username
         )
-        # Pre-create records so leaderboard and profile work immediately
         _upsert_leaderboard(user.uid, username)
         _upsert_firestore(user.uid, username, email)
         return jsonify({"uid": user.uid, "message": "Account created!"}), 201
@@ -94,7 +87,6 @@ def register():
 
 @auth_bp.route("/google-callback", methods=["POST"])
 def google_callback():
-    """Receive Google OAuth ID token from client, create session."""
     data = request.get_json() or {}
     id_token = data.get("id_token")
     try:
