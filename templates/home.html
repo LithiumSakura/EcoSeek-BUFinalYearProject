@@ -3,7 +3,6 @@
 
 {% block content %}
 <div class="dashboard">
-  <!-- Flask data passed to JS via data attributes — no Jinja inside script tags -->
   <div id="flask-data"
     data-user-id="{{ session['user_id'] }}"
     data-total-xp="{{ user.get('total_points', 0) }}"
@@ -11,7 +10,6 @@
     style="display:none">
   </div>
 
-  <!-- Welcome banner -->
   <section class="dash-banner">
     <div class="dash-banner-text">
       <h1>Hello, {{ user.get('display_name', 'Explorer') }}! 👋</h1>
@@ -22,7 +20,6 @@
     </div>
   </section>
 
-  <!-- Streak -->
   <section class="dash-streak card">
     <h2 class="card-title">🔥 Daily Streak</h2>
     <div class="streak-days" id="streak-days">
@@ -31,7 +28,6 @@
     <p class="streak-label" id="streak-label">Loading streak...</p>
   </section>
 
-  <!-- Quick actions -->
   <section class="quick-actions">
     <a href="{{ url_for('camera') }}" class="qa-card qa-camera">
       <div class="qa-icon">📷</div>
@@ -50,7 +46,6 @@
     </a>
   </section>
 
-  <!-- Level progress -->
   <section class="card">
     <h2 class="card-title">📈 Your Level</h2>
     <div class="level-info">
@@ -63,7 +58,6 @@
     <p class="progress-label" id="level-label"></p>
   </section>
 
-  <!-- Recent sightings -->
   <section class="card">
     <h2 class="card-title">🌿 Recent Finds</h2>
     <div id="recent-sightings" class="sighting-list">
@@ -76,7 +70,6 @@
 
 {% block extra_scripts %}
 <script>
-  // Read Flask values from data attributes — linter-safe, no Jinja in JS
   const _data      = document.getElementById("flask-data").dataset;
   const USER_ID    = _data.userId;
   const TOTAL_XP   = parseInt(_data.totalXp,  10) || 0;
@@ -107,7 +100,6 @@
     return {bird:"🐦", insect:"🦋", plant:"🌸", animal:"🦊"}[cat] || "🌿";
   }
 
-  // Level bar
   const totalXp = TOTAL_XP;
   fetch("/api/level?xp=" + totalXp)
     .then(r => r.json())
@@ -119,7 +111,6 @@
         d.xp_into_level + " / " + d.xp_needed + " XP to next level";
     });
 
-  // Streak display
   const streak = STREAK_DAYS;
   const days   = ["M","T","W","T","F","S","S"];
   const today  = new Date().getDay(); // 0=Sun
