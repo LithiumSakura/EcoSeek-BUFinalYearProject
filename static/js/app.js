@@ -1,9 +1,3 @@
-/**
- * EcoSeek — app.js
- * Shared utilities available on every page.
- */
-
-// ── XP toast (can be called from any page) ────────
 function showXpToast(pts, subText) {
   const toast = document.getElementById("xp-toast");
   if (!toast) return;
@@ -13,7 +7,6 @@ function showXpToast(pts, subText) {
   setTimeout(() => toast.classList.add("hidden"), 3500);
 }
 
-// ── Badge popup ───────────────────────────────────
 function showBadgePopup(badge) {
   const popup = document.getElementById("badge-popup");
   if (!popup) return;
@@ -26,7 +19,6 @@ function closeBadgePopup() {
   if (popup) popup.classList.add("hidden");
 }
 
-// ── Category emoji helper ─────────────────────────
 function categoryEmoji(cat) {
   return { bird: "🐦", insect: "🦋", plant: "🌸", animal: "🦊" }[cat] || "🌿";
 }
