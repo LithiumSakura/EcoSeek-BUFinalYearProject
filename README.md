@@ -11,7 +11,7 @@ A gamified nature-spotting web app for children, built with Flask, Firebase, and
 * Firestore — user documents, sighting history
 * Google App Engine — one-command deploy
 
-## Prerequisites
+## Requirements
 * Python 3.11+
 * A Google account (for Cloud Console & Firebase)
 * Google Cloud SDK installed
@@ -19,9 +19,28 @@ A gamified nature-spotting web app for children, built with Flask, Firebase, and
 ## Quick start guide (for local development)
 1. Clone the repo
 2. Create and activate a virtual environment
+```
+python -m venv venv
+ 
+# Windows
+venv\Scripts\activate
+ 
+# macOS / Linux
+source venv/bin/activate
+```
 3. Install dependencies
+```bash
+pip install -r requirements.txt
+```
 4. Set up Firebase
 5. Create .env file
+```
+SECRET_KEY=replace-with-any-long-random-string
+GOOGLE_CLOUD_PROJECT=your-gcp-project-id
+GOOGLE_APPLICATION_CREDENTIALS=firebase-key.json
+VISION_API_KEY=your-google-vision-api-key
+PLANTNET_API_KEY=your-plantnet-api-key
+```
 6. Run locally
 
 ## Scoring system and levels
