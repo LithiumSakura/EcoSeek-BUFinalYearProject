@@ -1,14 +1,7 @@
-"""
-EcoSeek — Main Flask Application
-Entry point for Google App Engine.
-"""
+# EcoSeek — Main Flask Application
 
 import os
 
-# ── Load secrets ───────────────────────────────────────────────────────────────
-# Locally: read from .env file (never committed)
-# On App Engine: fetch from Google Cloud Secret Manager
-# ──────────────────────────────────────────────────────────────────────────────
 def _load_secrets():
     if os.environ.get("GAE_ENV"):
         # Running on App Engine — fetch from Secret Manager
@@ -33,7 +26,6 @@ def _load_secrets():
 
 _load_secrets()
 
-# ── Firebase init ──────────────────────────────────────────────────────────────
 import firebase_admin
 from firebase_admin import credentials, firestore
 
@@ -82,7 +74,6 @@ def index():
         return redirect(url_for("home"))
     return render_template("index.html")
 
-
 @app.route("/home")
 @login_required
 def home():
@@ -91,8 +82,6 @@ def home():
     user_data = user_doc.to_dict() if user_doc.exists else {}
     user_data.setdefault("display_name", session.get("display_name", "Explorer"))
 
-    # Normalise field names — Firestore stores 'day_streak' but
-    # the template reads 'streak_days'. Support both so neither breaks.
     if "streak_days" not in user_data:
         user_data["streak_days"] = user_data.get("day_streak", 0)
     if "total_points" not in user_data:
@@ -100,31 +89,26 @@ def home():
 
     return render_template("home.html", user=user_data)
 
-
 @app.route("/camera")
 @login_required
 def camera():
     return render_template("camera.html")
-
 
 @app.route("/leaderboard")
 @login_required
 def leaderboard():
     return render_template("leaderboard.html")
 
-
 @app.route("/profile")
 @login_required
 def profile():
     return render_template("profile.html", user_id=session["user_id"])
-
 
 @app.route("/api/level")
 @login_required
 def api_level():
     xp = request.args.get("xp", 0, type=int)
     return jsonify(get_level(xp))
-
 
 @app.route("/api/profile/<user_id>")
 @login_required
@@ -151,11 +135,9 @@ def api_profile(user_id):
         **level_info
     })
 
-
 @app.route("/_ah/health")
 def health():
     return "OK", 200
-
 
 application = app
 
