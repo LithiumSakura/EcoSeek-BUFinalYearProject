@@ -9,12 +9,10 @@
     <p>This week's nature champions!</p>
   </div>
 
-  <!-- Podium (top 3) -->
   <div class="podium" id="podium">
     <p class="empty-msg" style="text-align:center">Loading…</p>
   </div>
 
-  <!-- Full list -->
   <div class="lb-list" id="lb-list">
     <p class="empty-msg">Loading leaderboard…</p>
   </div>
@@ -42,12 +40,10 @@
     });
 
   function getName(u) {
-    // display_name is the username stored at registration; fall back gracefully
     return u.display_name && u.display_name !== "Explorer" ? u.display_name : "Explorer";
   }
 
   function renderPodium(top3) {
-    // Display order: 2nd | 1st | 3rd
     const order   = [1, 0, 2];
     const heights = ["60px", "80px", "44px"];
     const colours = ["#7aab8a", "#2e7d4f", "#a8c5b0"];
