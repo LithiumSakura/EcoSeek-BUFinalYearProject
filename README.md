@@ -1,7 +1,6 @@
 # EcoSeek
 A gamified nature-spotting web app for children, built with Flask, Firebase, and Google Cloud. Point your phone at a plant or animal, get an instant AI identification, and earn XP for every discovery.
 
----
 
 ## Features
 * AI species identification — plants via Pl@ntNet API; birds, animals, and insects via Google Cloud Vision API
@@ -17,8 +16,6 @@ A gamified nature-spotting web app for children, built with Flask, Firebase, and
 * A Google account (for Cloud Console & Firebase)
 * Google Cloud SDK installed
 
----
-
 ## Quick start guide (for local development)
 1. Clone the repo
 2. Create and activate a virtual environment
@@ -26,8 +23,6 @@ A gamified nature-spotting web app for children, built with Flask, Firebase, and
 4. Set up Firebase
 5. Create .env file
 6. Run locally
-
----
 
 ## Scoring system and levels
 
@@ -47,9 +42,6 @@ A gamified nature-spotting web app for children, built with Flask, Firebase, and
 | Wildlife Ranger | 1000 |
 | Eco Guardian | 1500 |
 | Master Naturalist | 2500 |
-
-
----
 
 ## Licence
 Built as a student project. Not licensed for commercial use.
