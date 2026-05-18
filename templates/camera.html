@@ -4,7 +4,6 @@
 {% block content %}
 <div class="camera-page">
 
-  <!-- Camera viewfinder -->
   <div class="viewfinder-wrap" id="viewfinder-wrap">
     <video id="video" autoplay playsinline class="camera-video"></video>
     <div class="viewfinder-overlay">
@@ -17,14 +16,12 @@
     <canvas id="canvas" class="hidden"></canvas>
   </div>
 
-  <!-- Upload fallback -->
   <div class="camera-controls">
     <button class="shutter-btn" id="shutter-btn" onclick="capturePhoto()">📷</button>
     <label class="upload-btn" for="file-upload">🖼️ Upload photo</label>
     <input type="file" id="file-upload" accept="image/*" class="hidden" onchange="handleUpload(event)" />
   </div>
 
-  <!-- Result panel (hidden until identification done) -->
   <div class="result-panel hidden" id="result-panel">
     <div class="result-header">
       <div class="result-emoji" id="result-emoji">🌿</div>
@@ -36,7 +33,6 @@
 
     <div class="result-tags" id="result-tags"></div>
 
-    <!-- Fun facts section -->
     <div class="fun-facts-wrap" id="fun-facts-wrap" style="display:none">
       <div class="fun-facts-title">🧠 Did you know?</div>
       <div class="fun-facts-loading hidden" id="fun-facts-loading">
@@ -62,7 +58,6 @@
     </div>
   </div>
 
-  <!-- Loading spinner -->
   <div class="identifying-spinner hidden" id="spinner">
     <div class="spinner-circle"></div>
     <p>Identifying... 🔍</p>
