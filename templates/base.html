@@ -9,8 +9,6 @@
   {% block extra_head %}{% endblock %}
 </head>
 <body>
-
-  <!-- ── Top navigation bar (shown when logged in) ── -->
   {% if session.get('user_id') %}
   <nav class="topnav">
     <a class="topnav-logo" href="{{ url_for('home') }}">Eco<span>Seek</span> 🌿</a>
@@ -23,13 +21,11 @@
     </div>
   </nav>
   {% endif %}
-
-  <!-- ── Main content ── -->
+  
   <main class="main-content">
     {% block content %}{% endblock %}
   </main>
 
-  <!-- ── XP Toast notification (shown after a sighting) ── -->
   <div id="xp-toast" class="xp-toast hidden">
     <div class="xp-toast-inner">
       <span class="xp-toast-num" id="xp-toast-num">+50</span>
@@ -40,7 +36,6 @@
     </div>
   </div>
 
-  <!-- ── Badge popup ── -->
   <div id="badge-popup" class="badge-popup hidden">
     <div class="badge-popup-inner">
       <div class="badge-popup-icon" id="badge-popup-icon">🏆</div>
