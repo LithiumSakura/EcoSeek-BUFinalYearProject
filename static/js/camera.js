@@ -1,16 +1,9 @@
-/**
- * EcoSeek — camera.js
- * Handles webcam/phone camera access, photo capture,
- * Vision API identification, fun facts, and sighting save.
- */
-
 let currentImageB64    = null;
 let identifiedSpecies  = null;
 let identifiedCategory = null;
 let userLat = null;
 let userLng = null;
 
-// ── Start camera on page load ─────────────────────
 window.addEventListener("DOMContentLoaded", () => {
   startCamera();
   getLocation();
@@ -40,7 +33,6 @@ function getLocation() {
   );
 }
 
-// ── Capture from live camera ──────────────────────
 function capturePhoto() {
   const video  = document.getElementById("video");
   const canvas = document.getElementById("canvas");
@@ -51,7 +43,6 @@ function capturePhoto() {
   identifyImage(b64);
 }
 
-// ── Upload from file ──────────────────────────────
 function handleUpload(event) {
   const file = event.target.files[0];
   if (!file) return;
@@ -63,7 +54,6 @@ function handleUpload(event) {
   reader.readAsDataURL(file);
 }
 
-// ── Call /api/identify ────────────────────────────
 async function identifyImage(b64) {
   currentImageB64 = b64;
   showSpinner(true);
@@ -94,7 +84,6 @@ async function identifyImage(b64) {
   }
 }
 
-// ── Display the result panel ──────────────────────
 function showResult(data) {
   const emoji = { bird:"🐦", insect:"🦋", plant:"🌸", animal:"🦊" }[data.category] || "🌿";
   document.getElementById("result-emoji").textContent = emoji;
@@ -118,7 +107,6 @@ function showResult(data) {
   document.getElementById("result-panel").classList.remove("hidden");
 }
 
-// ── Fetch and display fun facts ───────────────────
 async function loadFunFacts(species, category) {
   try {
     const resp = await fetch("/api/funfacts", {
@@ -135,13 +123,11 @@ async function loadFunFacts(species, category) {
         data.facts.map(f => `<li>${f}</li>`).join("");
     }
   } catch (err) {
-    // Silently hide the loading spinner if facts fail
     document.getElementById("fun-facts-loading").classList.add("hidden");
     console.warn("Fun facts error:", err);
   }
 }
 
-// ── Save sighting to the server ───────────────────
 async function saveSighting() {
   if (!identifiedSpecies) return;
 
@@ -165,17 +151,14 @@ async function saveSighting() {
 
     if (!resp.ok) throw new Error(data.error || "Save failed");
 
-    // Show XP earned
     document.getElementById("result-xp-num").textContent = "+" + data.points;
     document.getElementById("result-xp-sub").textContent = data.is_new
       ? "Brand new species! 🎉"
       : "Keep spotting to find new ones!";
     document.getElementById("result-xp").style.display = "flex";
 
-    // Show XP toast
     showXpToast(data.points, data.is_new);
 
-    // Show badge popup if any awarded
     if (data.badges_awarded && data.badges_awarded.length > 0) {
       setTimeout(() => showBadgePopup(data.badges_awarded[0]), 2000);
     }
@@ -189,7 +172,6 @@ async function saveSighting() {
   }
 }
 
-// ── Reset the camera view ─────────────────────────
 function resetCamera() {
   hideResult();
   currentImageB64    = null;
@@ -201,7 +183,7 @@ function resetCamera() {
   document.getElementById("fun-facts-list").innerHTML = "";
 }
 
-// ── UI helpers ────────────────────────────────────
+// UI helpers
 function showSpinner(show) {
   document.getElementById("spinner").classList.toggle("hidden", !show);
 }
