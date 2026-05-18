@@ -1,4 +1,4 @@
-# ── SECRETS — NEVER commit these ──────────────────
+# Secrets
 .env
 firebase-key.json
 *.json.bak
