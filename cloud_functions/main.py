@@ -3,7 +3,7 @@ EcoSeek — Google Cloud Functions
 Background tasks triggered by Firestore events.
 
 Deploy with:
-  gcloud functions deploy check_badges \
+    gcloud functions deploy check_badges \
     --runtime python311 \
     --trigger-event providers/cloud.firestore/eventTypes/document.create \
     --trigger-resource "projects/YOUR_PROJECT/databases/(default)/documents/sightings/{sightingId}" \
