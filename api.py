@@ -1,11 +1,3 @@
-"""
-EcoSeek — REST API Blueprint
-Identification strategy:
-  Plants  → Pl@ntNet API  (purpose-built, free, highly accurate)
-  Birds / Animals / Insects → Google Vision API (fallback for non-plants)
-Species facts → iNaturalist Taxa API (free, no key, Wikipedia-sourced data)
-"""
-
 import os
 import base64
 import tempfile
@@ -34,7 +26,6 @@ INAT_TAXA_URL    = "https://api.inaturalist.org/v1/taxa"
 ECOSEEK_USER_AGENT = "EcoSeek/1.0 (student project; contact via github)"
 
 
-# ── Auth guard ────────────────────────────────────────────────────
 def api_login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -44,48 +35,29 @@ def api_login_required(f):
     return decorated
 
 
-# ════════════════════════════════════════════════════════════════════
-# /api/identify
-# ════════════════════════════════════════════════════════════════════
 @api_bp.route("/identify", methods=["POST"])
 @api_login_required
 def identify():
-    """
-    Accepts a base64 image.
-    1. Tries Pl@ntNet first (plants are the most common sighting).
-    2. If confidence is low or it's clearly not a plant, falls back
-       to Google Vision for birds / animals / insects.
-    Returns species name, common name, scientific name, category,
-    confidence, and the source API used.
-    """
     try:
         data      = request.get_json()
         image_b64 = data.get("image_b64")
         if not image_b64:
             return jsonify({"error": "No image provided"}), 400
 
-        # ── Try Pl@ntNet ──────────────────────────────────────────
         plantnet_result = _identify_plantnet(image_b64)
 
         if plantnet_result and plantnet_result["confidence"] >= 15:
-            # Good plant match
             return jsonify({**plantnet_result, "source": "plantnet"})
 
-        # ── Fall back to Google Vision for non-plant life ─────────
         vision_result = _identify_vision(image_b64)
         if vision_result:
-            # If Pl@ntNet found anything at all, always prefer it for plants —
-            # Vision's labels frequently misclassify flowers as insects
             if plantnet_result and plantnet_result["confidence"] >= 5:
                 return jsonify({**plantnet_result, "source": "plantnet"})
-            # Force category to plant if Vision labels suggest it,
-            # regardless of what _guess_category returned
             if any(w in " ".join(vision_result.get("labels", [])).lower()
-                   for w in ["flower", "petal", "plant", "leaf", "bloom", "vegetation"]):
+                    for w in ["flower", "petal", "plant", "leaf", "bloom", "vegetation"]):
                 vision_result["category"] = "plant"
             return jsonify({**vision_result, "source": "vision"})
 
-        # ── Both failed ───────────────────────────────────────────
         return jsonify({"error": "Could not identify — try a clearer photo"}), 422
 
     except Exception as e:
@@ -94,11 +66,9 @@ def identify():
 
 
 def _identify_plantnet(image_b64: str) -> dict | None:
-    """Call Pl@ntNet API with a base64 image. Returns result dict or None."""
     if not PLANTNET_API_KEY:
         return None
     try:
-        # Pl@ntNet expects multipart/form-data with the actual image bytes
         img_bytes = base64.b64decode(image_b64)
         resp = requests.post(
             PLANTNET_URL,
@@ -113,7 +83,6 @@ def _identify_plantnet(image_b64: str) -> dict | None:
         )
 
         if resp.status_code == 404:
-            # Pl@ntNet returns 404 when it can't identify anything as a plant
             return None
         if not resp.ok:
             print(f"PLANTNET ERROR {resp.status_code}: {resp.text[:200]}")
@@ -149,7 +118,6 @@ def _identify_plantnet(image_b64: str) -> dict | None:
 
 
 def _identify_vision(image_b64: str) -> dict | None:
-    """Call Google Vision API. Returns result dict or None."""
     if not VISION_API_KEY:
         return None
     try:
@@ -197,24 +165,14 @@ def _identify_vision(image_b64: str) -> dict | None:
         return None
 
 
-# ════════════════════════════════════════════════════════════════════
-# /api/funfacts  — iNaturalist Taxa API
-# ════════════════════════════════════════════════════════════════════
 @api_bp.route("/funfacts", methods=["POST"])
 @api_login_required
 def fun_facts():
-    """
-    Fetches species information from the iNaturalist Taxa API.
-    Returns 3 child-friendly facts extracted from the Wikipedia summary
-    that iNaturalist stores for each taxon.
-    No API key required.
-    """
     data     = request.get_json()
     species  = data.get("species", "")
     sci_name = data.get("sci_name", "")
     category = data.get("category", "other")
 
-    # Prefer scientific name for accuracy; fall back to common name
     query = sci_name if sci_name else species
 
     try:
@@ -224,7 +182,7 @@ def fun_facts():
                 "q":          query,
                 "per_page":   1,
                 "locale":     "en",
-                "preferred_place_id": 6857,  # United Kingdom — boosts UK-relevant results
+                "preferred_place_id": 6857,
             },
             headers={"User-Agent": ECOSEEK_USER_AGENT},
             timeout=10
@@ -259,14 +217,8 @@ def fun_facts():
 
 def _extract_facts(summary: str, common: str, sci: str, rank: str,
                    status: str, category: str) -> list:
-    """
-    Turns a Wikipedia summary + taxon metadata into 3 child-friendly facts.
-    Splits on sentences, picks the most interesting ones, and adds
-    conservation status as a fact if present.
-    """
     facts = []
 
-    # Fact 1 — conservation status if notable
     if status and status not in ("least concern", ""):
         status_display = status.title()
         facts.append(
@@ -274,7 +226,6 @@ def _extract_facts(summary: str, common: str, sci: str, rank: str,
             f"that means it needs our help to survive!"
         )
 
-    # Facts from Wikipedia summary — pick short, interesting sentences
     if summary:
         sentences = [s.strip() for s in summary.replace("\n", " ").split(". ")
                      if len(s.strip()) > 40 and len(s.strip()) < 220]
@@ -288,7 +239,6 @@ def _extract_facts(summary: str, common: str, sci: str, rank: str,
                 continue
             facts.append(s.rstrip(".") + ".")
 
-    # Pad with category fallbacks if we don't have 3
     fallbacks = _fallback_facts(common, category)
     while len(facts) < 3:
         fb = fallbacks[len(facts) % len(fallbacks)]
@@ -299,7 +249,6 @@ def _extract_facts(summary: str, common: str, sci: str, rank: str,
 
 
 def _fallback_facts(species: str, category: str) -> list:
-    """Static fallback facts used when the iNaturalist API has no data."""
     fallbacks = {
         "bird": [
             "Birds are the only living animals that have feathers!",
@@ -329,13 +278,9 @@ def _fallback_facts(species: str, category: str) -> list:
     ])
 
 
-# ════════════════════════════════════════════════════════════════════
-# /api/sighting
-# ════════════════════════════════════════════════════════════════════
 @api_bp.route("/sighting", methods=["POST"])
 @api_login_required
 def save_sighting():
-    """Save a confirmed sighting to Firestore and update the SQL leaderboard."""
     db       = get_db()
     user_id  = session["user_id"]
     username = session.get("display_name", "Explorer")
@@ -358,7 +303,6 @@ def save_sighting():
     )
     is_new = len(existing) == 0
 
-    # Streak calculation
     user_ref  = db.collection("users").document(user_id)
     user_snap = user_ref.get()
     user_data = user_snap.to_dict() if user_snap.exists else {}
@@ -377,7 +321,6 @@ def save_sighting():
 
     points = calculate_points(species, is_new, streak_days=new_streak)
 
-    # Store sighting in Firestore
     sighting_ref = db.collection("sightings").document()
     sighting_ref.set({
         "user_id":   user_id,
@@ -392,7 +335,6 @@ def save_sighting():
         "timestamp": datetime.now(timezone.utc).isoformat()
     })
 
-    # Update SQL leaderboard
     with get_db_connection() as conn:
         conn.execute("""
             INSERT INTO leaderboard (user_id, display_name, total_points, species_count)
@@ -408,12 +350,11 @@ def save_sighting():
         ))
         conn.commit()
 
-    # Update Firestore user profile
     update_data = {
         "total_xp":    firestore.Increment(points),
-        "total_points": firestore.Increment(points),  # keep both names in sync
+        "total_points": firestore.Increment(points),
         "day_streak":  new_streak,
-        "streak_days": new_streak,  # keep both names in sync
+        "streak_days": new_streak,
         "last_active": today,
     }
     if is_new:
@@ -431,9 +372,6 @@ def save_sighting():
     }), 201
 
 
-# ════════════════════════════════════════════════════════════════════
-# /api/leaderboard
-# ════════════════════════════════════════════════════════════════════
 @api_bp.route("/leaderboard")
 def leaderboard():
     with get_db_connection() as conn:
@@ -446,9 +384,6 @@ def leaderboard():
     return jsonify([dict(r) for r in rows])
 
 
-# ════════════════════════════════════════════════════════════════════
-# /api/sightings/<user_id>
-# ════════════════════════════════════════════════════════════════════
 @api_bp.route("/sightings/<user_id>")
 @api_login_required
 def get_sightings(user_id):
@@ -465,9 +400,6 @@ def get_sightings(user_id):
     return jsonify([{"id": d.id, **d.to_dict()} for d in docs])
 
 
-# ════════════════════════════════════════════════════════════════════
-# /api/profile/photo
-# ════════════════════════════════════════════════════════════════════
 @api_bp.route("/profile/photo", methods=["POST"])
 @api_login_required
 def update_profile_photo():
@@ -486,13 +418,8 @@ def update_profile_photo():
     return jsonify({"message": "Photo updated!"}), 200
 
 
-# ════════════════════════════════════════════════════════════════════
-# Helpers
-# ════════════════════════════════════════════════════════════════════
 def _guess_category(labels: list) -> str:
     label_str = " ".join(labels).lower()
-    # Check plant FIRST — flowers/petals/leaves often co-occur with insect labels
-    # e.g. Vision returns "Insect, Flower, Petal" for a sunflower photo
     if any(w in label_str for w in ["plant", "flower", "petal", "tree", "leaf",
                                      "grass", "fern", "flora", "bloom", "blossom",
                                      "sunflower", "daisy", "rose", "vegetation"]):
