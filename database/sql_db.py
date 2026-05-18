@@ -1,8 +1,3 @@
-"""
-EcoSeek — SQL Database (SQLite locally, /tmp on App Engine)
-Manages the leaderboard table and user score records.
-"""
-
 import sqlite3
 import os
 from contextlib import contextmanager
@@ -38,17 +33,14 @@ CREATE TABLE IF NOT EXISTS sighting_log (
 
 
 def init_db():
-    """Create tables if they don't exist. Called on app startup."""
     with get_db_connection() as conn:
         conn.executescript(_SCHEMA)
         conn.commit()
 
 @contextmanager
 def get_db_connection():
-    """Context manager — always closes the connection cleanly."""
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
-    # Always ensure schema exists (important: App Engine /tmp is wiped on restart)
     conn.executescript(_SCHEMA)
     conn.commit()
     try:
@@ -57,10 +49,7 @@ def get_db_connection():
         conn.close()
 
 def upsert_user(user_id: str, display_name: str):
-    """
-    Add user to leaderboard if not already there.
-    Also updates display_name if it has changed.
-    """
+    # Adding user to leaderboard if they aren't already on there
     with get_db_connection() as conn:
         conn.execute("""
             INSERT INTO leaderboard (user_id, display_name)
@@ -71,7 +60,6 @@ def upsert_user(user_id: str, display_name: str):
         conn.commit()
 
 def add_points(user_id: str, points: int, is_new_species: bool):
-    """Add XP to a user's score and optionally increment species count."""
     with get_db_connection() as conn:
         conn.execute("""
             UPDATE leaderboard
@@ -83,7 +71,6 @@ def add_points(user_id: str, points: int, is_new_species: bool):
         conn.commit()
 
 def get_top_users(limit: int = 20) -> list:
-    """Return top N users ordered by total points."""
     with get_db_connection() as conn:
         rows = conn.execute("""
             SELECT user_id, display_name, total_points, species_count, streak_days
@@ -94,7 +81,6 @@ def get_top_users(limit: int = 20) -> list:
     return [dict(r) for r in rows]
 
 def get_user_rank(user_id: str) -> int:
-    """Return the rank (1-based) of a specific user."""
     with get_db_connection() as conn:
         result = conn.execute("""
             SELECT COUNT(*) + 1 AS rank
@@ -106,7 +92,6 @@ def get_user_rank(user_id: str) -> int:
     return result["rank"] if result else 1
 
 def log_sighting(user_id: str, species: str, category: str, points: int, is_new: bool):
-    """Record a sighting in the SQL log for audit purposes."""
     with get_db_connection() as conn:
         conn.execute("""
             INSERT INTO sighting_log (user_id, species, category, points, is_new)
