@@ -1,20 +1,9 @@
-"""
-EcoSeek — Google Cloud Functions
-Background tasks triggered by Firestore events.
-
-Deploy with:
-    gcloud functions deploy check_badges \
-    --runtime python311 \
-    --trigger-event providers/cloud.firestore/eventTypes/document.create \
-    --trigger-resource "projects/YOUR_PROJECT/databases/(default)/documents/sightings/{sightingId}" \
-    --region europe-west2
-"""
+# EcoSeek — Google Cloud Functions
 
 import functions_framework
 from firebase_admin import firestore, initialize_app
 import firebase_admin
 
-# Initialise Firebase (uses Application Default Credentials on Cloud)
 if not firebase_admin._apps:
     initialize_app()
 
@@ -34,10 +23,6 @@ BADGE_RULES = {
 
 @functions_framework.cloud_event
 def check_badges(cloud_event):
-    """
-    Triggered when a new sighting document is created in Firestore.
-    Awards badges to the user if they have crossed any thresholds.
-    """
     data = cloud_event.data
     sighting = data.get("value", {}).get("fields", {})
 
@@ -52,7 +37,6 @@ def check_badges(cloud_event):
     user_data = user_ref.get().to_dict() or {}
     existing_badges = set(user_data.get("badges", []))
 
-    # Increment counters
     total_species = user_data.get("species_count", 0) + (1 if is_new else 0)
     cat_count     = user_data.get(f"{category}_count", 0) + (1 if is_new else 0)
 
@@ -65,7 +49,6 @@ def check_badges(cloud_event):
             existing_badges.add(key)
             newly_awarded.append({"key": key, "label": rule["label"], "icon": rule["icon"]})
 
-    # Update user document with new badges and counters
     update_data = {
         "badges":       list(existing_badges),
         "species_count": total_species,
