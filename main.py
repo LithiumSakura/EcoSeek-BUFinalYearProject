@@ -7,7 +7,7 @@ def _load_secrets():
         # Running on App Engine — fetch from Secret Manager
         try:
             from google.cloud import secretmanager
-            project_id = os.environ.get("GOOGLE_CLOUD_PROJECT", "ecoseek-buproject-f015d")
+            project_id = os.environ.get("GOOGLE_CLOUD_PROJECT", "ecoseek-project-id")
             client = secretmanager.SecretManagerServiceClient()
 
             def _get(name):
@@ -16,7 +16,6 @@ def _load_secrets():
 
             os.environ.setdefault("SECRET_KEY",      _get("ECOSEEK_SECRET_KEY"))
             os.environ.setdefault("VISION_API_KEY",  _get("ECOSEEK_VISION_API_KEY"))
-            os.environ.setdefault("ANTHROPIC_API_KEY", _get("ECOSEEK_ANTHROPIC_API_KEY"))
         except Exception as e:
             print(f"WARNING: Could not load secrets from Secret Manager: {e}")
     else:
@@ -36,7 +35,7 @@ if not firebase_admin._apps:
     else:
         cred = credentials.ApplicationDefault()
     firebase_admin.initialize_app(cred, {
-        "projectId": os.environ.get("GOOGLE_CLOUD_PROJECT", "ecoseek-buproject-f015d")
+        "projectId": os.environ.get("GOOGLE_CLOUD_PROJECT", "ecoseek-project-id")
     })
 
 db = firestore.client()
